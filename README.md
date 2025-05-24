@@ -108,4 +108,11 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 Seu Nome - [@seu_twitter](https://twitter.com/seu_twitter) - email@exemplo.com
 
-Link do Projeto: [https://github.com/seu-usuario/bingoweb3](https://github.com/seu-usuario/bingoweb3) 
+Link do Projeto: [https://github.com/seu-usuario/bingoweb3](https://github.com/seu-usuario/bingoweb3)
+
+## 🚀 Status do Projeto
+
+- [x] Configuração inicial do projeto
+- [x] Templates para Issues e Pull Requests
+- [x] CI/CD com GitHub Actions
+- [x] Proteção de branch main 
