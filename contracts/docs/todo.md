@@ -1,0 +1,32 @@
+# Lista de Tarefas - Desenvolvimento Bingo Web3
+
+- [ ] Confirmar requisitos iniciais com o usuário
+- [ ] Definir ordem de desenvolvimento dos contratos (Cartela primeiro)
+- [x] Iniciar desenvolvimento do contrato `CartelaContract`
+    - [x] Configurar projeto Foundry
+    - [x] Criar estrutura básica do `CartelaContract.sol` (struct, mapeamento, ID)
+    - [x] Implementar função `criarCartela(linhas, colunas)`
+    - [x] Implementar função `registrarNumerosCartela(cartelaId, numeros)`
+    - [x] Implementar função `vincularDono(cartelaId, novoDono)`
+    - [x] Adicionar eventos relevantes
+    - [x] Escrever testes básicos com Foundry
+- [x] Validar estrutura e funcionalidades básicas do `CartelaContract`
+- [x] Iniciar desenvolvimento do contrato `BingoGameContract`
+    - [x] Definir estrutura da Rodada (struct Rodada)
+    - [x] Implementar `iniciarRodada`
+    - [x] Implementar `participar(cartelaId)`
+    - [x] Configurar integração Chainlink VRF (subscrição, etc.)
+    - [ ] Implementar `sortearNumero` (chamada VRF)
+    - [ ] Implementar `fulfillRandomWords` (recebimento VRF)
+    - [x] Implementar `verificarVencedores` (lógica de verificação flexível)
+    - [x] Implementar `distribuirPremios` (opcional)
+    - [x] Rodar e validar testes para `BingoGameContract`
+- [x] Validar integração e funcionalidades do `BingoGameContract`
+- [ ] Desenvolver interface frontend básica (React + Ethers.js)
+    - [ ] Conexão de carteira
+    - [ ] Criação/visualização de cartela
+    - [ ] Interação com rodadas (participar, visualizar sorteio)
+- [ ] Realizar testes de integração (contratos + frontend)
+- [ ] Implantar em Testnet (Sepolia/Mumbai)
+- [ ] Reportar progresso e arquivos ao usuário em cada etapa significativa
+- [ ] Finalizar e entregar versão inicial
