@@ -2,13 +2,93 @@
 /node_modules
 /.pnp
 .pnp.js
+/frontend/node_modules
+/contracts/node_modules
 
 # Testes
 /coverage
+/frontend/coverage
+/contracts/coverage
 
 # Produção
 /build
 /dist
+/frontend/.next
+/frontend/out
+/frontend/build
+/frontend/dist
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+/frontend/.env*
+/contracts/.env*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Foundry
+/contracts/cache
+/contracts/out
+/contracts/broadcast
+/contracts/cache-zk
+/contracts/out-zk
+/contracts/artifacts
+/contracts/coverage
+/contracts/coverage.json
+/contracts/gas-report.txt
+
+# Next.js
+/frontend/.next/
+/frontend/out/
+/frontend/.vercel
+/frontend/.swc/
+
+# Arquivos de cache
+.cache/
+.eslintcache
+/frontend/.cache
+/frontend/.eslintcache
+
+# Arquivos de debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Arquivos temporários
+*.log
+*.tmp
+*.temp
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de deploy
+/frontend/.vercel
+/frontend/.env.production
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+
+# Hardhat
+/cache
+/artifacts
+/typechain
+/typechain-types
 
 # Arquivos de ambiente
 .env
