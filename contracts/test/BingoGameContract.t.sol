@@ -1,379 +1,495 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Test, console} from "forge-std/Test.sol";
-import {Vm} from "forge-std/Vm.sol";
-
-// Import only the contract, access enum via ContractName.EnumName
-import {BingoGameContract} from "../src/BingoGameContract.sol";
+import {VRFCoordinatorV2Interface} from "@chainlink/contracts/vrf/interfaces/VRFCoordinatorV2Interface.sol";
+import {VRFConsumerBaseV2} from "@chainlink/contracts/vrf/VRFConsumerBaseV2.sol";
 import {CartelaContract} from "../src/CartelaContract.sol";
-import {VRFCoordinatorV2Mock} from "@chainlink/contracts/vrf/mocks/VRFCoordinatorV2Mock.sol";
 
-/**
- * @title Test BingoGameContract
- * @dev Tests for the BingoGameContract functionalities, including VRF interaction mocks.
- */
-contract BingoGameContractTest is Test {
-    // Contracts
-    BingoGameContract public bingoGame;
-    CartelaContract public cartelaContract;
-    VRFCoordinatorV2Mock public vrfCoordinatorMock;
+contract BingoGameContract is VRFConsumerBaseV2 {
+    using SafeMath for uint256;
 
-    // Users
-    address public admin = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266; // Anvil Account 0
-    address public player1 = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8; // Anvil Account 1
-    address public player2 = 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC; // Anvil Account 2
+    enum EstadoRodada {
+        Inativa,
+        Aberta,
+        Sorteando,
+        Finalizada,
+        Cancelada
+    }
 
-    // VRF Mock Config
-    uint64 public subscriptionId;
-    bytes32 public keyHash = 0x79d3d8832d964ce69f173fd1a7909ff5b5b39d5f5c5cfc99b4167106e7356b3a; // Example key hash (doesn't matter for mock)
-    uint256 public constant FUND_AMOUNT_UINT256 = 10 ether; // Use uint256 for dealing ETH
-    uint96 public constant FUND_AMOUNT = 10 ether; // Use uint96 for fundSubscription
-    uint32 public constant CALLBACK_GAS_LIMIT = 200000;
+    enum PadraoVitoria {
+        Linha,
+        Coluna,
+        Diagonal,
+        Cartela
+    }
 
-    // Game Config
-    uint8 public constant DEFAULT_NUMERO_MAXIMO = 75;
-    uint8 public constant CARD_LINHAS = 5;
-    uint8 public constant CARD_COLUNAS = 5;
-    uint256 public constant CARD_SIZE = uint256(CARD_LINHAS) * uint256(CARD_COLUNAS);
+    struct Rodada {
+        uint256 id;
+        EstadoRodada estado;
+        uint8 numeroMaximo;
+        uint[] numerosSorteados;
+        mapping(uint => bool) numerosSorteadosMap;
+        mapping(uint256 => bool) cartelasParticipantes;
+        uint256[] listaCartelasParticipantes;
+        address[] vencedores;
+        uint256 ultimoRequestId;
+        bool pedidoVrfPendente;
+        bool premiosDistribuidos;
+        uint256 taxaEntrada;
+        uint256 premioTotal;
+        uint256 timestampInicio;
+        uint256 timeoutRodada;
+        mapping(PadraoVitoria => bool) padroesVitoriaAtivos;
+        mapping(address => uint256) premiosVencedores;
+    }
 
-    function setUp() public {
-        // Deploy CartelaContract
-        vm.startPrank(admin);
-        cartelaContract = new CartelaContract(0.01 ether, admin);
+    CartelaContract public immutable cartelaContract;
+    VRFCoordinatorV2Interface COORDINATOR;
+    uint64 s_subscriptionId;
+    bytes32 s_keyHash;
+    uint32 s_callbackGasLimit = 200000;
+    uint16 s_requestConfirmations = 3;
+    uint32 s_numWords = 1;
 
-        // Deploy VRFCoordinatorV2Mock
-        vrfCoordinatorMock = new VRFCoordinatorV2Mock(0.1 ether, 1e9);
+    mapping(uint256 => uint256) public vrfRequestIdToRodadaId;
+    uint256 private _proximaRodadaId;
+    mapping(uint256 => Rodada) public rodadas;
+    address public admin;
+    address public feeCollector;
+    mapping(address => bool) public operadores;
 
-        // Create VRF Subscription
-        subscriptionId = vrfCoordinatorMock.createSubscription();
+    uint256 public constant TAXA_ADMIN = 5;
+    uint256 public constant TAXA_PLATAFORMA = 5;
+    uint256 public constant TIMEOUT_PADRAO = 1 hours;
 
-        // Fund Subscription - Cast FUND_AMOUNT_UINT256 to uint96
-        vrfCoordinatorMock.fundSubscription(subscriptionId, uint96(FUND_AMOUNT_UINT256));
+    event RodadaIniciada(uint256 indexed rodadaId, uint8 numeroMaximo, uint256 taxaEntrada, uint256 timeoutRodada);
+    event JogadorEntrou(uint256 indexed rodadaId, uint256 indexed cartelaId, address indexed jogador, uint256 taxaPaga);
+    event PedidoVrfEnviado(uint256 indexed rodadaId, uint256 indexed requestId);
+    event NumeroSorteado(uint256 indexed rodadaId, uint256 indexed requestId, uint256 numeroSorteado);
+    event VencedorEncontrado(uint256 indexed rodadaId, address indexed vencedor, uint256 cartelaId, PadraoVitoria padrao);
+    event RodadaFinalizada(uint256 indexed rodadaId, uint256 premioTotal, uint256 numVencedores);
+    event RodadaCancelada(uint256 indexed rodadaId, string motivo);
+    event AdminAtualizado(address adminAnterior, address novoAdmin);
+    event FeeCollectorAtualizado(address feeCollectorAnterior, address novoFeeCollector);
+    event OperadorAtualizado(address operador, bool status);
+    event PremioDistribuido(uint256 indexed rodadaId, address indexed vencedor, uint256 premio);
 
-        // Deploy BingoGameContract
-        bingoGame = new BingoGameContract(
-            address(cartelaContract),
-            address(vrfCoordinatorMock),
-            subscriptionId,
-            keyHash,
-            admin,
-            admin
+    modifier apenasAdmin() {
+        require(msg.sender == admin, unicode"BingoGame: Apenas admin pode chamar");
+        _;
+    }
+
+    modifier apenasOperador() {
+        require(operadores[msg.sender], unicode"BingoGame: Apenas operador pode chamar");
+        _;
+    }
+
+    modifier rodadaExiste(uint256 _rodadaId) {
+        require(rodadas[_rodadaId].id == _rodadaId, unicode"BingoGame: Round does not exist");
+        _;
+    }
+
+    modifier rodadaAtiva(uint256 _rodadaId) {
+        Rodada storage rodada = rodadas[_rodadaId];
+        require(rodada.estado == EstadoRodada.Aberta || rodada.estado == EstadoRodada.Sorteando,
+            unicode"BingoGame: Round is not active");
+        require(block.timestamp <= rodada.timestampInicio + rodada.timeoutRodada,
+            unicode"BingoGame: Round expired");
+        _;
+    }
+
+    constructor(
+        address _cartelaContractAddress,
+        address _vrfCoordinator,
+        uint64 _subscriptionId,
+        bytes32 _keyHash,
+        address _admin,
+        address _feeCollector
+    ) VRFConsumerBaseV2(_vrfCoordinator) {
+        require(_cartelaContractAddress != address(0), "BingoGame: Invalid CartelaContract address");
+        cartelaContract = CartelaContract(_cartelaContractAddress);
+        COORDINATOR = VRFCoordinatorV2Interface(_vrfCoordinator);
+        s_subscriptionId = _subscriptionId;
+        s_keyHash = _keyHash;
+        admin = _admin;
+        feeCollector = _feeCollector;
+        cartelaContract.setBingoGameContract(address(this));
+    }
+
+    function iniciarRodada(
+        uint8 _numeroMaximo,
+        uint256 _taxaEntrada,
+        uint256 _timeoutRodada,
+        bool[] calldata _padroesVitoria
+    ) external apenasOperador returns (uint256 rodadaId) {
+        require(_numeroMaximo >= 10 && _numeroMaximo <= 99, unicode"BingoGame: Numero maximo must be between 10 and 99");
+        require(_taxaEntrada > 0, unicode"BingoGame: Taxa de entrada deve ser maior que zero");
+        require(_timeoutRodada >= 30 minutes && _timeoutRodada <= 24 hours, 
+            unicode"BingoGame: Timeout deve estar entre 30 minutos e 24 horas");
+        require(_padroesVitoria.length == 4, unicode"BingoGame: Deve especificar todos os padrões de vitória");
+
+        rodadaId = _proximaRodadaId++;
+        Rodada storage novaRodada = rodadas[rodadaId];
+        novaRodada.id = rodadaId;
+        novaRodada.estado = EstadoRodada.Aberta;
+        novaRodada.numeroMaximo = _numeroMaximo;
+        novaRodada.taxaEntrada = _taxaEntrada;
+        novaRodada.timeoutRodada = _timeoutRodada;
+        novaRodada.timestampInicio = block.timestamp;
+
+        for (uint i = 0; i < 4; i++) {
+            novaRodada.padroesVitoriaAtivos[PadraoVitoria(i)] = _padroesVitoria[i];
+        }
+
+        emit RodadaIniciada(rodadaId, _numeroMaximo, _taxaEntrada, _timeoutRodada);
+        return rodadaId;
+    }
+
+    function participar(uint256 _rodadaId, uint256 _cartelaId) 
+        external 
+        payable 
+        rodadaExiste(_rodadaId) 
+        rodadaAtiva(_rodadaId) 
+    {
+        Rodada storage rodada = rodadas[_rodadaId];
+        require(rodada.estado == EstadoRodada.Aberta, unicode"BingoGame: Round is not open");
+        require(msg.value >= rodada.taxaEntrada, unicode"BingoGame: Insufficient entry fee");
+
+        (, , , address dono, bool numerosRegistrados, bool emUso, ) = cartelaContract.cartelas(_cartelaId);
+        require(dono != address(0), unicode"BingoGame: Card does not exist");
+        require(dono == msg.sender, unicode"BingoGame: Caller is not the owner of the card");
+        require(numerosRegistrados, unicode"BingoGame: Card numbers are not registered");
+        require(!rodada.cartelasParticipantes[_cartelaId], unicode"BingoGame: Card already participating");
+
+        cartelaContract.marcarEmUso(_cartelaId, true);
+        rodada.cartelasParticipantes[_cartelaId] = true;
+        rodada.listaCartelasParticipantes.push(_cartelaId);
+        rodada.premioTotal = rodada.premioTotal.add(msg.value);
+
+        emit JogadorEntrou(_rodadaId, _cartelaId, msg.sender, msg.value);
+    }
+
+    function sortearNumero(uint256 _rodadaId) 
+        external 
+        apenasOperador 
+        rodadaExiste(_rodadaId) 
+        rodadaAtiva(_rodadaId) 
+        returns (uint256 requestId) 
+    {
+        Rodada storage rodada = rodadas[_rodadaId];
+        require(!rodada.pedidoVrfPendente, unicode"BingoGame: Previous VRF request still pending");
+        require(rodada.numerosSorteados.length < rodada.numeroMaximo, unicode"BingoGame: All numbers drawn");
+
+        if (rodada.estado == EstadoRodada.Aberta) {
+            rodada.estado = EstadoRodada.Sorteando;
+        }
+
+        requestId = COORDINATOR.requestRandomWords(
+            s_keyHash,
+            s_subscriptionId,
+            s_requestConfirmations,
+            s_callbackGasLimit,
+            s_numWords
         );
 
-        // Add BingoGameContract as a consumer to the subscription
-        vrfCoordinatorMock.addConsumer(subscriptionId, address(bingoGame));
+        rodada.ultimoRequestId = requestId;
+        rodada.pedidoVrfPendente = true;
+        vrfRequestIdToRodadaId[requestId] = _rodadaId;
 
-        // Adicionar admin como operador
-        bingoGame.setOperador(admin, true);
-
-        vm.stopPrank();
-
-        // Não precisamos mais deal ETH pois as contas do Anvil já vêm com ETH
+        emit PedidoVrfEnviado(_rodadaId, requestId);
+        return requestId;
     }
 
-    // --- Helper Functions --- //
+    function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal override {
+        uint256 rodadaId = vrfRequestIdToRodadaId[_requestId];
+        Rodada storage rodada = rodadas[rodadaId];
+        require(rodada.id == rodadaId, "BingoGame: Invalid round ID for VRF request");
+        require(rodada.pedidoVrfPendente && rodada.ultimoRequestId == _requestId, "BingoGame: Invalid or fulfilled VRF request");
+        rodada.pedidoVrfPendente = false;
+        uint256 numeroAleatorio = _randomWords[0];
+        uint256 numeroSorteado;
+        uint256 offset = 0;
+        bool numeroJaSorteado;
+        do {
+            numeroSorteado = ((numeroAleatorio + offset) % rodada.numeroMaximo) + 1;
+            numeroJaSorteado = rodada.numerosSorteadosMap[numeroSorteado];
+            offset++;
+            require(offset <= rodada.numeroMaximo, "BingoGame: Could not find unique number");
+        } while (numeroJaSorteado);
+        rodada.numerosSorteados.push(numeroSorteado);
+        rodada.numerosSorteadosMap[numeroSorteado] = true;
+        emit NumeroSorteado(rodadaId, _requestId, numeroSorteado);
+        _verificarVencedores(rodadaId);
+    }
 
-    function _createAndRegisterCard(address _player, uint8 _linhas, uint8 _colunas) internal returns (uint256 cartelaId) {
-        vm.startPrank(_player);
-        cartelaId = cartelaContract.criarCartela(_linhas, _colunas);
-        uint[] memory numeros = new uint[](_linhas * _colunas);
-        for(uint i = 0; i < numeros.length; i++) {
-            numeros[i] = (i % 99) + 1;
+    function _verificarVencedores(uint256 _rodadaId) internal {
+        Rodada storage rodada = rodadas[_rodadaId];
+        if (rodada.estado == EstadoRodada.Finalizada) return;
+        uint256 numParticipantes = rodada.listaCartelasParticipantes.length;
+        bool vencedorEncontrado = false;
+        for (uint i = 0; i < numParticipantes; i++) {
+            uint256 cartelaId = rodada.listaCartelasParticipantes[i];
+            (, uint8 linhas, uint8 colunas, address dono, , bool emUso, ) = cartelaContract.cartelas(cartelaId);
+            uint[] memory numerosCartela = cartelaContract.getNumerosCartela(cartelaId);
+            bool ganhou = false;
+            if (rodada.padroesVitoriaAtivos[PadraoVitoria.Linha]) {
+                if (_verificarLinhas(rodada, numerosCartela, linhas, colunas)) {
+                    ganhou = true;
+                }
+            }
+            if (!ganhou && rodada.padroesVitoriaAtivos[PadraoVitoria.Coluna]) {
+                if (_verificarColunas(rodada, numerosCartela, linhas, colunas)) {
+                    ganhou = true;
+                }
+            }
+            if (!ganhou && linhas == colunas && rodada.padroesVitoriaAtivos[PadraoVitoria.Diagonal]) {
+                if (_verificarDiagonais(rodada, numerosCartela, linhas, colunas)) {
+                    ganhou = true;
+                }
+            }
+            if (!ganhou && rodada.padroesVitoriaAtivos[PadraoVitoria.Cartela]) {
+                if (_verificarCartelaCompleta(rodada, numerosCartela)) {
+                    ganhou = true;
+                }
+            }
+            if (ganhou) {
+                bool jaAdicionado = false;
+                for(uint w=0; w < rodada.vencedores.length; w++) {
+                    if (rodada.vencedores[w] == dono) { jaAdicionado = true; break; }
+                }
+                if (!jaAdicionado) {
+                    rodada.vencedores.push(dono);
+                    vencedorEncontrado = true;
+                    _registrarVencedor(rodada, dono, cartelaId, PadraoVitoria.Linha);
+                }
+            }
         }
-        cartelaContract.registrarNumerosCartela(cartelaId, numeros);
-        vm.stopPrank();
+        if (vencedorEncontrado) {
+            _finalizarRodada(rodada);
+        }
     }
 
-    // Helper function to get round state safely
-    function _getRoundState(uint256 rodadaId) internal view returns (BingoGameContract.EstadoRodada) {
-        (, BingoGameContract.EstadoRodada estado,,,,,,,,) = bingoGame.rodadas(rodadaId);
-        return estado;
+    function _verificarLinhas(
+        Rodada storage rodada,
+        uint[] memory numerosCartela,
+        uint8 linhas,
+        uint8 colunas
+    ) internal view returns (bool) {
+        for (uint r = 0; r < linhas; r++) {
+            bool linhaCompleta = true;
+            for (uint c = 0; c < colunas; c++) {
+                if (!rodada.numerosSorteadosMap[numerosCartela[r * colunas + c]]) {
+                    linhaCompleta = false;
+                    break;
+                }
+            }
+            if (linhaCompleta) return true;
+        }
+        return false;
     }
 
-    // Helper function to check if VRF request is pending
-    function _isVrfRequestPending(uint256 rodadaId) internal view returns (bool) {
-        (,,,, bool pedidoPendente,,,,,) = bingoGame.rodadas(rodadaId);
-        return pedidoPendente;
+    function _verificarColunas(
+        Rodada storage rodada,
+        uint[] memory numerosCartela,
+        uint8 linhas,
+        uint8 colunas
+    ) internal view returns (bool) {
+        for (uint c = 0; c < colunas; c++) {
+            bool colunaCompleta = true;
+            for (uint r = 0; r < linhas; r++) {
+                if (!rodada.numerosSorteadosMap[numerosCartela[r * colunas + c]]) {
+                    colunaCompleta = false;
+                    break;
+                }
+            }
+            if (colunaCompleta) return true;
+        }
+        return false;
     }
 
-    // Helper function to get last request ID
-    function _getLastRequestId(uint256 rodadaId) internal view returns (uint256) {
-        (,,,,,,, uint256 ultimoRequestId,,) = bingoGame.rodadas(rodadaId);
-        return ultimoRequestId;
+    function _verificarDiagonais(
+        Rodada storage rodada,
+        uint[] memory numerosCartela,
+        uint8 linhas,
+        uint8 colunas
+    ) internal view returns (bool) {
+        bool diag1Completa = true;
+        for (uint d = 0; d < linhas; d++) {
+            if (!rodada.numerosSorteadosMap[numerosCartela[d * colunas + d]]) diag1Completa = false;
+        }
+        if (diag1Completa) return true;
+
+        bool diag2Completa = true;
+        for (uint d = 0; d < linhas; d++) {
+            if (!rodada.numerosSorteadosMap[numerosCartela[d * colunas + (colunas - 1 - d)]]) diag2Completa = false;
+        }
+        return diag2Completa;
     }
 
-    // Helper function to get prize total
-    function _getPrizeTotal(uint256 rodadaId) internal view returns (uint256) {
-        (,,,,,, uint256 premioTotal,,,) = bingoGame.rodadas(rodadaId);
-        return premioTotal;
+    function _verificarCartelaCompleta(
+        Rodada storage rodada,
+        uint[] memory numerosCartela
+    ) internal view returns (bool) {
+        for (uint i = 0; i < numerosCartela.length; i++) {
+            if (!rodada.numerosSorteadosMap[numerosCartela[i]]) {
+                return false;
+            }
+        }
+        return true;
     }
 
-    // --- Test iniciarRodada --- //
-
-    function test_IniciarRodada_Success() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        assertEq(rodadaId, 0, "First round ID should be 0");
-        // Não desestruturar rodadas diretamente, pois structs internas não são retornadas por getter
-    }
-
-    function test_IniciarRodada_EmitEvent() public {
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true;
-        padroes[1] = true;
-        padroes[2] = true;
-        padroes[3] = true;
-
-        vm.expectEmit(true, false, false, true);
-        emit BingoGameContract.RodadaIniciada(0, 75, 0.01 ether, 1 hours);
-        
-        vm.startPrank(admin);
-        bingoGame.iniciarRodada(75, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_IniciarRodada_NumeroMaximoTooLow() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        vm.expectRevert("BingoGame: Numero maximo must be between 10 and 99");
-        bingoGame.iniciarRodada(9, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_IniciarRodada_NumeroMaximoTooHigh() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        vm.expectRevert("BingoGame: Numero maximo must be between 10 and 99");
-        bingoGame.iniciarRodada(100, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-    }
-
-    // --- Test participar --- //
-
-    function test_Participar_Success() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        uint256 cartelaId = _createAndRegisterCard(player1, CARD_LINHAS, CARD_COLUNAS);
-
-        vm.startPrank(player1);
-        bingoGame.participar{value: 0.01 ether}(rodadaId, cartelaId);
-        vm.stopPrank();
-        // Rely on event emission test for verification
-    }
-
-    function test_Participar_EmitEvent() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        uint256 cartelaId = _createAndRegisterCard(player1, CARD_LINHAS, CARD_COLUNAS);
-
-        vm.expectEmit(true, true, true, true);
-        emit BingoGameContract.JogadorEntrou(rodadaId, cartelaId, player1, 0.01 ether);
-
-        vm.startPrank(player1);
-        bingoGame.participar{value: 0.01 ether}(rodadaId, cartelaId);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_Participar_RoundNotOpen() public {
-        uint256 cartelaId = _createAndRegisterCard(player1, CARD_LINHAS, CARD_COLUNAS);
-        vm.startPrank(player1);
-        vm.expectRevert("BingoGame: Round is not open or does not exist");
-        bingoGame.participar(0, cartelaId);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_Participar_NotCardOwner() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        uint256 cartelaId = _createAndRegisterCard(player1, CARD_LINHAS, CARD_COLUNAS);
-
-        vm.startPrank(player2);
-        vm.expectRevert("BingoGame: Caller is not the owner of the card");
-        bingoGame.participar(rodadaId, cartelaId);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_Participar_CardNotRegistered() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        vm.startPrank(player1);
-        uint256 cartelaId = cartelaContract.criarCartela(CARD_LINHAS, CARD_COLUNAS);
-        vm.stopPrank();
-
-        vm.startPrank(player1);
-        vm.expectRevert("BingoGame: Card numbers are not registered");
-        bingoGame.participar(rodadaId, cartelaId);
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_Participar_AlreadyParticipating() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        uint256 cartelaId = _createAndRegisterCard(player1, CARD_LINHAS, CARD_COLUNAS);
-
-        vm.startPrank(player1);
-        bingoGame.participar(rodadaId, cartelaId);
-        vm.expectRevert("BingoGame: Card already participating in this round");
-        bingoGame.participar(rodadaId, cartelaId);
-        vm.stopPrank();
-    }
-
-    // --- Test sortearNumero & fulfillRandomWords (Basic Mock Interaction) --- //
-
-    function test_SortearNumero_Success_And_Fulfill() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        uint256 cartelaId = _createAndRegisterCard(player1, CARD_LINHAS, CARD_COLUNAS);
-        vm.startPrank(player1);
-        bingoGame.participar{value: 0.01 ether}(rodadaId, cartelaId);
-        vm.stopPrank();
-
-        vm.startPrank(admin);
-        uint256 requestId = bingoGame.sortearNumero(rodadaId);
-        vm.stopPrank();
-
-        // Check state before fulfillment using helper functions
-        BingoGameContract.EstadoRodada estado = _getRoundState(rodadaId);
-        bool pedidoPendente = _isVrfRequestPending(rodadaId);
-        uint256 ultimoRequestId = _getLastRequestId(rodadaId);
-        
-        assertEq(uint(estado), uint(BingoGameContract.EstadoRodada.Sorteando), "Round state should be Sorteando");
-        assertTrue(pedidoPendente, "VRF request should be pending");
-        assertEq(ultimoRequestId, requestId, "Last request ID mismatch");
-
-        vm.startPrank(address(vrfCoordinatorMock));
-        vrfCoordinatorMock.fulfillRandomWords(requestId, address(bingoGame));
-        vm.stopPrank();
-
-        // Check state after fulfillment using helper function
-        bool pedidoPendenteAfter = _isVrfRequestPending(rodadaId);
-        assertFalse(pedidoPendenteAfter, "VRF request should not be pending after fulfillment");
-    }
-
-    function test_SortearNumero_EmitEvent() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-
-        vm.expectEmit(true, true, false, true);
-        emit BingoGameContract.PedidoVrfEnviado(rodadaId, 1);
-
-        vm.startPrank(admin);
-        bingoGame.sortearNumero(rodadaId);
-        vm.stopPrank();
-    }
-
-    function test_Fulfill_EmitEvent() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-        vm.startPrank(admin);
-        uint256 requestId = bingoGame.sortearNumero(rodadaId);
-        vm.stopPrank();
-
-        // Check only indexed topics (rodadaId, requestId), ignore data (numeroSorteado)
-        vm.expectEmit(true, true, false, false);
-        emit BingoGameContract.NumeroSorteado(rodadaId, requestId, 0); // Data doesn't matter here
-
-        vm.startPrank(address(vrfCoordinatorMock));
-        vrfCoordinatorMock.fulfillRandomWords(requestId, address(bingoGame));
-        vm.stopPrank();
-    }
-
-    function test_RevertWhen_SortearNumero_RequestPending() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        bingoGame.sortearNumero(rodadaId);
-        // Keep admin prank active
-        vm.expectRevert("BingoGame: Previous VRF request still pending");
-        bingoGame.sortearNumero(rodadaId);
-        vm.stopPrank();
-    }
-
-    // --- Test _verificarVencedores (Basic Row Win) --- //
-
-    function test_VerificarVencedores_RowWin() public {
-        vm.startPrank(admin);
-        bool[] memory padroes = new bool[](4);
-        padroes[0] = true; padroes[1] = true; padroes[2] = true; padroes[3] = true;
-        uint256 rodadaId = bingoGame.iniciarRodada(DEFAULT_NUMERO_MAXIMO, 0.01 ether, 1 hours, padroes);
-        vm.stopPrank();
-
-        vm.startPrank(player1);
-        uint256 cartelaId = cartelaContract.criarCartela(CARD_LINHAS, CARD_COLUNAS);
-        uint[] memory numeros = new uint[](CARD_SIZE);
-        for(uint i = 0; i < CARD_SIZE; i++) { numeros[i] = i + 1; }
-        cartelaContract.registrarNumerosCartela(cartelaId, numeros);
-        vm.stopPrank();
-
-        vm.startPrank(player1);
-        bingoGame.participar{value: 0.01 ether}(rodadaId, cartelaId);
-        vm.stopPrank();
-
-        uint256 requestId;
-        uint256[] memory randomWords = new uint256[](1);
-
-        for (uint i = 1; i <= 4; i++) {
-            vm.startPrank(admin);
-            requestId = bingoGame.sortearNumero(rodadaId);
-            vm.stopPrank();
-            vm.startPrank(address(vrfCoordinatorMock));
-            randomWords[0] = i - 1;
-            vrfCoordinatorMock.fulfillRandomWordsWithOverride(requestId, address(bingoGame), randomWords);
-            vm.stopPrank();
+    function _registrarVencedor(
+        Rodada storage rodada,
+        address vencedor,
+        uint256 cartelaId,
+        PadraoVitoria padrao
+    ) internal {
+        for (uint i = 0; i < rodada.vencedores.length; i++) {
+            if (rodada.vencedores[i] == vencedor) {
+                return;
+            }
         }
 
-        vm.startPrank(admin);
-        requestId = bingoGame.sortearNumero(rodadaId);
-        vm.stopPrank();
+        rodada.vencedores.push(vencedor);
+        emit VencedorEncontrado(rodada.id, vencedor, cartelaId, padrao);
+    }
 
-        // Get round state and prize total using helper functions
-        BingoGameContract.EstadoRodada estado = _getRoundState(rodadaId);
-        uint256 premioTotal = _getPrizeTotal(rodadaId);
-        address[] memory vencedores = bingoGame.getVencedores(rodadaId);
+    function _finalizarRodada(Rodada storage rodada) internal {
+        rodada.estado = EstadoRodada.Finalizada;
 
-        vm.expectEmit(true, true, true, true);
-        emit BingoGameContract.VencedorEncontrado(rodadaId, player1, cartelaId, BingoGameContract.PadraoVitoria.Linha);
-        vm.expectEmit(true, false, false, true);
-        emit BingoGameContract.RodadaFinalizada(rodadaId, premioTotal, vencedores.length);
+        uint256 premioPorVencedor = rodada.premioTotal.div(rodada.vencedores.length);
+        uint256 taxaAdmin = rodada.premioTotal.mul(TAXA_ADMIN).div(100);
+        uint256 taxaPlataforma = rodada.premioTotal.mul(TAXA_PLATAFORMA).div(100);
 
-        vm.startPrank(address(vrfCoordinatorMock));
-        randomWords[0] = 5 - 1;
-        vrfCoordinatorMock.fulfillRandomWordsWithOverride(requestId, address(bingoGame), randomWords);
-        vm.stopPrank();
+        for (uint i = 0; i < rodada.vencedores.length; i++) {
+            address vencedor = rodada.vencedores[i];
+            rodada.premiosVencedores[vencedor] = premioPorVencedor;
+            (bool success, ) = vencedor.call{value: premioPorVencedor}("");
+            require(success, "BingoGame: Failed to distribute prize");
+            emit PremioDistribuido(rodada.id, vencedor, premioPorVencedor);
+        }
 
-        // Check final state using helper function
-        estado = _getRoundState(rodadaId);
-        assertEq(uint(estado), uint(BingoGameContract.EstadoRodada.Finalizada), "Round state should be Finalizada");
+        (bool successAdmin, ) = admin.call{value: taxaAdmin}("");
+        require(successAdmin, "BingoGame: Failed to send admin tax");
+        (bool successPlataforma, ) = feeCollector.call{value: taxaPlataforma}("");
+        require(successPlataforma, "BingoGame: Failed to send platform tax");
+
+        for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
+            cartelaContract.marcarEmUso(rodada.listaCartelasParticipantes[i], false);
+        }
+
+        emit RodadaFinalizada(rodada.id, rodada.premioTotal, rodada.vencedores.length);
+    }
+
+    function cancelarRodada(uint256 _rodadaId, string calldata _motivo) 
+        external 
+        apenasOperador 
+        rodadaExiste(_rodadaId) 
+    {
+        Rodada storage rodada = rodadas[_rodadaId];
+        require(rodada.estado != EstadoRodada.Finalizada && rodada.estado != EstadoRodada.Cancelada,
+            "BingoGame: Round already finalized or canceled");
+
+        for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
+            cartelaContract.marcarEmUso(rodada.listaCartelasParticipantes[i], false);
+        }
+
+        if (rodada.premioTotal > 0) {
+            uint256 valorPorJogador = rodada.premioTotal.div(rodada.listaCartelasParticipantes.length);
+            for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
+                (, , , address dono, , , ) = cartelaContract.cartelas(rodada.listaCartelasParticipantes[i]);
+                (bool success, ) = dono.call{value: valorPorJogador}("");
+                require(success, "BingoGame: Failed to return prize");
+            }
+        }
+
+        rodada.estado = EstadoRodada.Cancelada;
+        emit RodadaCancelada(_rodadaId, _motivo);
+    }
+
+    function setOperador(address _operador, bool _status) external apenasAdmin {
+        require(_operador != address(0), unicode"BingoGame: Operador não pode ser zero");
+        operadores[_operador] = _status;
+        emit OperadorAtualizado(_operador, _status);
+    }
+
+    function getUltimoRequestId(uint256 _rodadaId) 
+        external 
+        view 
+        rodadaExiste(_rodadaId) 
+        returns (uint256) 
+    {
+        return rodadas[_rodadaId].ultimoRequestId;
+    }
+
+    function getNumerosSorteados(uint256 _rodadaId) 
+        external 
+        view 
+        rodadaExiste(_rodadaId) 
+        returns (uint[] memory) 
+    {
+        return rodadas[_rodadaId].numerosSorteados;
+    }
+
+    function getVencedores(uint256 _rodadaId) 
+        external 
+        view 
+        rodadaExiste(_rodadaId) 
+        returns (address[] memory) 
+    {
+        return rodadas[_rodadaId].vencedores;
+    }
+
+    function getPremioVencedor(uint256 _rodadaId, address _vencedor) 
+        external 
+        view 
+        rodadaExiste(_rodadaId) 
+        returns (uint256) 
+    {
+        return rodadas[_rodadaId].premiosVencedores[_vencedor];
+    }
+
+    function getCartelasParticipantes(uint256 _rodadaId) 
+        external 
+        view 
+        rodadaExiste(_rodadaId) 
+        returns (uint256[] memory) 
+    {
+        return rodadas[_rodadaId].listaCartelasParticipantes;
+    }
+
+    function verificarTimeoutRodada(uint256 _rodadaId) 
+        external 
+        view 
+        rodadaExiste(_rodadaId) 
+        returns (bool) 
+    {
+        Rodada storage rodada = rodadas[_rodadaId];
+        return block.timestamp > rodada.timestampInicio + rodada.timeoutRodada;
+    }
+}
+
+library SafeMath {
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+        return c;
+    }
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b <= a, "SafeMath: subtraction overflow");
+        return a - b;
+    }
+
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) return 0;
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+        return c;
+    }
+
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        require(b > 0, "SafeMath: division by zero");
+        return a / b;
     }
 }

@@ -13,6 +13,13 @@ contract CartelaContract {
     // Endereço que recebe as taxas
     address public feeCollector;
 
+    // Endereço do contrato do jogo que pode marcar cartelas como em uso
+    address public bingoGameContract;
+
+    address public admin; // Adicionar variável admin
+
+    mapping(address => bool) public operadores;
+
     /**
      * @dev Representa uma cartela de Bingo.
      * `numeros` armazena os números da cartela em um array unidimensional.
@@ -73,6 +80,13 @@ contract CartelaContract {
         bool emUso
     );
 
+    event BingoGameContractAtualizado(
+        address bingoGameContractAnterior,
+        address novoBingoGameContract
+    );
+
+    event DebugAdmin(address sender, address feeCollector);
+
     // Modificadores
     modifier apenasDono(uint256 _cartelaId) {
         require(cartelas[_cartelaId].dono == msg.sender, unicode"CartelaContract: Chamador não é o dono");
@@ -85,7 +99,19 @@ contract CartelaContract {
     }
 
     modifier apenasFeeCollector() {
-        require(msg.sender == feeCollector, "CartelaContract: Apenas fee collector pode chamar");
+        require(msg.sender == feeCollector, unicode"CartelaContract: Apenas fee collector pode chamar");
+        _;
+    }
+
+    modifier apenasBingoGame() {
+        require(msg.sender == bingoGameContract, unicode"CartelaContract: Apenas o contrato do jogo pode chamar esta função");
+        _;
+    }
+
+    modifier apenasAdmin() {
+        emit DebugAdmin(msg.sender, feeCollector);
+        require(msg.sender == feeCollector || msg.sender == admin || operadores[msg.sender], 
+            unicode"CartelaContract: Apenas admin ou operadores podem chamar esta função");
         _;
     }
 
@@ -96,6 +122,9 @@ contract CartelaContract {
         require(_feeCollector != address(0), unicode"CartelaContract: Fee collector não pode ser zero");
         precoBaseCartela = _precoBaseCartela;
         feeCollector = _feeCollector;
+        admin = _feeCollector; // Definir admin como feeCollector
+        operadores[_feeCollector] = true; // Adiciona o feeCollector como operador inicial
+        emit DebugAdmin(msg.sender, _feeCollector); // Adiciona log para debug
     }
 
     // --- Funções Administrativas --- //
@@ -121,6 +150,17 @@ contract CartelaContract {
         emit FeeCollectorAtualizado(feeCollectorAnterior, _novoFeeCollector);
     }
 
+    function setBingoGameContract(address _bingoGameContract) external apenasAdmin {
+        require(_bingoGameContract != address(0), unicode"CartelaContract: Endereço do contrato do jogo não pode ser zero");
+        address bingoGameContractAnterior = bingoGameContract;
+        bingoGameContract = _bingoGameContract;
+        emit BingoGameContractAtualizado(bingoGameContractAnterior, _bingoGameContract);
+    }
+
+    function setOperador(address operador, bool status) external apenasAdmin {
+        operadores[operador] = status;
+    }
+
     // --- Funções Públicas --- //
 
     /**
@@ -132,10 +172,10 @@ contract CartelaContract {
      * @return cartelaId O ID da cartela recém-criada
      */
     function criarCartela(uint8 _linhas, uint8 _colunas) public payable returns (uint256 cartelaId) {
-        require(_linhas > 0, "CartelaContract: Linhas devem ser maiores que 0");
-        require(_colunas > 0, "CartelaContract: Colunas devem ser maiores que 0");
+        require(_linhas > 0, unicode"CartelaContract: Linhas devem ser maiores que 0");
+        require(_colunas > 0, unicode"CartelaContract: Colunas devem ser maiores que 0");
         require(uint256(_linhas) * uint256(_colunas) <= 255, unicode"CartelaContract: Tamanho da cartela muito grande (máx 255 células)");
-        require(msg.value >= precoBaseCartela, "CartelaContract: Valor insuficiente para criar cartela");
+        require(msg.value >= precoBaseCartela, unicode"CartelaContract: Valor insuficiente para criar cartela");
 
         cartelaId = _proximoCartelaId++;
         Cartela storage novaCartela = cartelas[cartelaId];
@@ -149,7 +189,7 @@ contract CartelaContract {
 
         // Envia a taxa para o fee collector
         (bool success, ) = feeCollector.call{value: msg.value}("");
-        require(success, "CartelaContract: Falha ao transferir taxa");
+        require(success, unicode"CartelaContract: Falha ao transferir taxa");
 
         emit CartelaCriada(cartelaId, msg.sender, _linhas, _colunas, msg.value);
         return cartelaId;
@@ -163,7 +203,7 @@ contract CartelaContract {
      * @param _numeros Array unidimensional dos números da cartela
      */
     function registrarNumerosCartela(uint256 _cartelaId, uint[] calldata _numeros) 
-        public 
+        external 
         apenasDono(_cartelaId) 
         cartelaExiste(_cartelaId) 
     {
@@ -199,7 +239,7 @@ contract CartelaContract {
      * @param _novoDono O endereço do novo dono
      */
     function vincularDono(uint256 _cartelaId, address _novoDono) 
-        public 
+        external 
         cartelaExiste(_cartelaId) 
         apenasDono(_cartelaId) 
     {
@@ -221,9 +261,9 @@ contract CartelaContract {
      */
     function marcarEmUso(uint256 _cartelaId, bool _emUso) 
         external 
+        apenasBingoGame
         cartelaExiste(_cartelaId) 
     {
-        // TODO: Adicionar verificação de que o chamador é o contrato do jogo
         cartelas[_cartelaId].emUso = _emUso;
         emit CartelaMarcadaEmUso(_cartelaId, _emUso);
     }
@@ -237,7 +277,7 @@ contract CartelaContract {
      * @return O array de números da cartela
      */
     function getNumerosCartela(uint256 _cartelaId) 
-        public 
+        external 
         view 
         cartelaExiste(_cartelaId) 
         returns (uint[] memory) 
@@ -251,7 +291,7 @@ contract CartelaContract {
      * @return bool Indicando se a cartela está em uso
      */
     function cartelaEmUso(uint256 _cartelaId) 
-        public 
+        external 
         view 
         cartelaExiste(_cartelaId) 
         returns (bool) 
@@ -266,7 +306,7 @@ contract CartelaContract {
      * @return bool Indicando se o número existe na cartela
      */
     function numeroExisteNaCartela(uint256 _cartelaId, uint _numero) 
-        public 
+        external 
         view 
         cartelaExiste(_cartelaId) 
         returns (bool) 

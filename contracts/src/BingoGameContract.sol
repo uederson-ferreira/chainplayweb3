@@ -1,155 +1,79 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-// Corrected paths based on installed library structure
 import {VRFCoordinatorV2Interface} from "@chainlink/contracts/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "@chainlink/contracts/vrf/VRFConsumerBaseV2.sol";
 import {CartelaContract} from "./CartelaContract.sol";
 
-/**
- * @title BingoGameContract
- * @dev Manages Bingo game rounds, draws numbers using Chainlink VRF, and determines winners.
- * Inherits from VRFConsumerBaseV2 to interact with Chainlink VRF.
- */
 contract BingoGameContract is VRFConsumerBaseV2 {
     using SafeMath for uint256;
 
-    // Enum for the state of a Bingo round
     enum EstadoRodada {
-        Inativa,    // Round hasn't started or doesn't exist
-        Aberta,     // Round is open for players to join
-        Sorteando,  // Round is closed, numbers are being drawn (VRF request pending or ongoing)
-        Finalizada, // Round has finished, winners determined
-        Cancelada   // Round canceled by timeout or administrator
+        Inativa,
+        Aberta,
+        Sorteando,
+        Finalizada,
+        Cancelada
     }
 
-    // Enum for winning patterns
     enum PadraoVitoria {
-        Linha,      // Complete row
-        Coluna,     // Complete column
-        Diagonal,   // Complete diagonal (only for square cartelas)
-        Cartela     // Complete cartela
+        Linha,
+        Coluna,
+        Diagonal,
+        Cartela
     }
 
-    /**
-     * @dev Represents a Bingo round.
-     */
     struct Rodada {
         uint256 id;
         EstadoRodada estado;
-        uint8 numeroMaximo; // e.g., 75 or 90, defines the range of numbers
-        uint[] numerosSorteados; // Array to store drawn numbers in order
-        mapping(uint => bool) numerosSorteadosMap; // Mapping for quick lookup of drawn numbers
-        mapping(uint256 => bool) cartelasParticipantes; // Mapping of participating card IDs for quick lookup
-        uint256[] listaCartelasParticipantes; // Array to iterate over participants if needed
-        address[] vencedores; // Addresses of the winners
-        uint256 ultimoRequestId; // Stores the latest Chainlink VRF request ID for this round
-        bool pedidoVrfPendente; // Flag indicating if a VRF request is awaiting fulfillment
-        bool premiosDistribuidos; // Flag to track if prizes were already distributed
-        uint256 taxaEntrada; // Entry fee for the round
-        uint256 premioTotal; // Total accumulated prizes
-        uint256 timestampInicio; // Timestamp of round start
-        uint256 timeoutRodada; // Maximum time for the round (in seconds)
-        mapping(PadraoVitoria => bool) padroesVitoriaAtivos; // Active winning patterns
-        mapping(address => uint256) premiosVencedores; // Prizes per winner
+        uint8 numeroMaximo;
+        uint[] numerosSorteados;
+        mapping(uint => bool) numerosSorteadosMap;
+        mapping(uint256 => bool) cartelasParticipantes;
+        uint256[] listaCartelasParticipantes;
+        address[] vencedores;
+        uint256 ultimoRequestId;
+        bool pedidoVrfPendente;
+        bool premiosDistribuidos;
+        uint256 taxaEntrada;
+        uint256 premioTotal;
+        uint256 timestampInicio;
+        uint256 timeoutRodada;
+        mapping(PadraoVitoria => bool) padroesVitoriaAtivos;
+        mapping(address => uint256) premiosVencedores;
     }
 
-    // Address of the associated CartelaContract
     CartelaContract public immutable cartelaContract;
-
-    // Chainlink VRF Variables
     VRFCoordinatorV2Interface COORDINATOR;
     uint64 s_subscriptionId;
-    bytes32 s_keyHash; // Gas lane key hash
-    uint32 s_callbackGasLimit = 200000; // Increased callback gas limit for winner check logic
-    uint16 s_requestConfirmations = 3; // Default request confirmations
-    uint32 s_numWords = 1; // Request 1 random word per draw
+    bytes32 s_keyHash;
+    uint32 s_callbackGasLimit = 200000;
+    uint16 s_requestConfirmations = 3;
+    uint32 s_numWords = 1;
 
-    // Mapping from VRF request ID to round ID
     mapping(uint256 => uint256) public vrfRequestIdToRodadaId;
-
-    // Counter for generating unique round IDs
     uint256 private _proximaRodadaId;
-
-    // Mapping from round ID to Rodada struct
     mapping(uint256 => Rodada) public rodadas;
-
-    // Control variables
     address public admin;
     address public feeCollector;
     mapping(address => bool) public operadores;
 
-    // Constant values
-    uint256 public constant TAXA_ADMIN = 5; // 5% for admin
-    uint256 public constant TAXA_PLATAFORMA = 5; // 5% for platform
-    uint256 public constant TIMEOUT_PADRAO = 1 hours; // Default timeout of 1 hour
+    uint256 public constant TAXA_ADMIN = 5;
+    uint256 public constant TAXA_PLATAFORMA = 5;
+    uint256 public constant TIMEOUT_PADRAO = 1 hours;
 
-    // --- Events --- //
-    event RodadaIniciada(
-        uint256 indexed rodadaId,
-        uint8 numeroMaximo,
-        uint256 taxaEntrada,
-        uint256 timeoutRodada
-    );
+    event RodadaIniciada(uint256 indexed rodadaId, uint8 numeroMaximo, uint256 taxaEntrada, uint256 timeoutRodada);
+    event JogadorEntrou(uint256 indexed rodadaId, uint256 indexed cartelaId, address indexed jogador, uint256 taxaPaga);
+    event PedidoVrfEnviado(uint256 indexed rodadaId, uint256 indexed requestId);
+    event NumeroSorteado(uint256 indexed rodadaId, uint256 indexed requestId, uint256 numeroSorteado);
+    event VencedorEncontrado(uint256 indexed rodadaId, address indexed vencedor, uint256 cartelaId, PadraoVitoria padrao);
+    event RodadaFinalizada(uint256 indexed rodadaId, uint256 premioTotal, uint256 numVencedores);
+    event RodadaCancelada(uint256 indexed rodadaId, string motivo);
+    event AdminAtualizado(address adminAnterior, address novoAdmin);
+    event FeeCollectorAtualizado(address feeCollectorAnterior, address novoFeeCollector);
+    event OperadorAtualizado(address operador, bool status);
+    event PremioDistribuido(uint256 indexed rodadaId, address indexed vencedor, uint256 premio);
 
-    event JogadorEntrou(
-        uint256 indexed rodadaId,
-        uint256 indexed cartelaId,
-        address indexed jogador,
-        uint256 taxaPaga
-    );
-
-    event PedidoVrfEnviado(
-        uint256 indexed rodadaId,
-        uint256 indexed requestId
-    );
-
-    event NumeroSorteado(
-        uint256 indexed rodadaId,
-        uint256 indexed requestId,
-        uint256 numeroSorteado // The actual Bingo number derived from random
-    );
-
-    event VencedorEncontrado(
-        uint256 indexed rodadaId,
-        address indexed vencedor,
-        uint256 cartelaId,
-        PadraoVitoria padrao
-    );
-
-    event RodadaFinalizada(
-        uint256 indexed rodadaId,
-        uint256 premioTotal,
-        uint256 numVencedores
-    );
-
-    event RodadaCancelada(
-        uint256 indexed rodadaId,
-        string motivo
-    );
-
-    event PremioDistribuido(
-        uint256 indexed rodadaId,
-        address indexed vencedor,
-        uint256 valor
-    );
-
-    event AdminAtualizado(
-        address adminAnterior,
-        address novoAdmin
-    );
-
-    event FeeCollectorAtualizado(
-        address feeCollectorAnterior,
-        address novoFeeCollector
-    );
-
-    event OperadorAtualizado(
-        address operador,
-        bool status
-    );
-
-    // --- Modifiers --- //
     modifier apenasAdmin() {
         require(msg.sender == admin, unicode"BingoGame: Apenas admin pode chamar");
         _;
@@ -161,22 +85,19 @@ contract BingoGameContract is VRFConsumerBaseV2 {
     }
 
     modifier rodadaExiste(uint256 _rodadaId) {
-        require(rodadas[_rodadaId].id == _rodadaId, "BingoGame: Round does not exist");
+        require(rodadas[_rodadaId].id == _rodadaId, unicode"BingoGame: Round does not exist");
         _;
     }
 
     modifier rodadaAtiva(uint256 _rodadaId) {
         Rodada storage rodada = rodadas[_rodadaId];
         require(rodada.estado == EstadoRodada.Aberta || rodada.estado == EstadoRodada.Sorteando,
-            "BingoGame: Round is not active");
+            unicode"BingoGame: Round is not active");
         require(block.timestamp <= rodada.timestampInicio + rodada.timeoutRodada,
-            "BingoGame: Round expired");
+            unicode"BingoGame: Round expired");
         _;
     }
 
-    /**
-     * @dev Constructor sets the address of the CartelaContract and VRF parameters.
-     */
     constructor(
         address _cartelaContractAddress,
         address _vrfCoordinator,
@@ -192,21 +113,17 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         s_keyHash = _keyHash;
         admin = _admin;
         feeCollector = _feeCollector;
+        cartelaContract.setBingoGameContract(address(this));
     }
 
-    // --- Functions --- //
-
-    /**
-     * @notice Starts a new Bingo round.
-     */
     function iniciarRodada(
         uint8 _numeroMaximo,
         uint256 _taxaEntrada,
         uint256 _timeoutRodada,
         bool[] calldata _padroesVitoria
     ) external apenasOperador returns (uint256 rodadaId) {
-        require(_numeroMaximo >= 10 && _numeroMaximo <= 99, "BingoGame: Numero maximo must be between 10 and 99");
-        require(_taxaEntrada > 0, "BingoGame: Taxa de entrada deve ser maior que zero");
+        require(_numeroMaximo >= 10 && _numeroMaximo <= 99, unicode"BingoGame: Numero maximo must be between 10 and 99");
+        require(_taxaEntrada > 0, unicode"BingoGame: Taxa de entrada deve ser maior que zero");
         require(_timeoutRodada >= 30 minutes && _timeoutRodada <= 24 hours, 
             unicode"BingoGame: Timeout deve estar entre 30 minutos e 24 horas");
         require(_padroesVitoria.length == 4, unicode"BingoGame: Deve especificar todos os padrões de vitória");
@@ -220,7 +137,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         novaRodada.timeoutRodada = _timeoutRodada;
         novaRodada.timestampInicio = block.timestamp;
 
-        // Configure winning patterns
         for (uint i = 0; i < 4; i++) {
             novaRodada.padroesVitoriaAtivos[PadraoVitoria(i)] = _padroesVitoria[i];
         }
@@ -229,9 +145,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         return rodadaId;
     }
 
-    /**
-     * @notice Allows a player to join an open Bingo round with a specific card.
-     */
     function participar(uint256 _rodadaId, uint256 _cartelaId) 
         external 
         payable 
@@ -239,19 +152,16 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         rodadaAtiva(_rodadaId) 
     {
         Rodada storage rodada = rodadas[_rodadaId];
-        require(rodada.estado == EstadoRodada.Aberta, "BingoGame: Round is not open");
-        require(msg.value >= rodada.taxaEntrada, "BingoGame: Insufficient entry fee");
+        require(rodada.estado == EstadoRodada.Aberta, unicode"BingoGame: Round is not open");
+        require(msg.value >= rodada.taxaEntrada, unicode"BingoGame: Insufficient entry fee");
 
-        (uint256 id, uint8 linhas, uint8 colunas, address dono, bool numerosRegistrados, bool emUso, uint256 precoBase) = cartelaContract.cartelas(_cartelaId);
-        require(dono != address(0), "BingoGame: Card does not exist");
-        require(dono == msg.sender, "BingoGame: Caller is not the owner of the card");
-        require(numerosRegistrados, "BingoGame: Card numbers are not registered");
-        require(!rodada.cartelasParticipantes[_cartelaId], "BingoGame: Card already participating");
+        (, , , address dono, bool numerosRegistrados, /*bool emUso*/, ) = cartelaContract.cartelas(_cartelaId);
+        require(dono != address(0), unicode"BingoGame: Card does not exist");
+        require(dono == msg.sender, unicode"BingoGame: Caller is not the owner of the card");
+        require(numerosRegistrados, unicode"BingoGame: Card numbers are not registered");
+        require(!rodada.cartelasParticipantes[_cartelaId], unicode"BingoGame: Card already participating");
 
-        // Mark card as in use
         cartelaContract.marcarEmUso(_cartelaId, true);
-
-        // Register participation
         rodada.cartelasParticipantes[_cartelaId] = true;
         rodada.listaCartelasParticipantes.push(_cartelaId);
         rodada.premioTotal = rodada.premioTotal.add(msg.value);
@@ -259,9 +169,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         emit JogadorEntrou(_rodadaId, _cartelaId, msg.sender, msg.value);
     }
 
-    /**
-     * @notice Requests a random number from Chainlink VRF to draw the next Bingo number.
-     */
     function sortearNumero(uint256 _rodadaId) 
         external 
         apenasOperador 
@@ -270,8 +177,8 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         returns (uint256 requestId) 
     {
         Rodada storage rodada = rodadas[_rodadaId];
-        require(!rodada.pedidoVrfPendente, "BingoGame: Previous VRF request still pending");
-        require(rodada.numerosSorteados.length < rodada.numeroMaximo, "BingoGame: All numbers drawn");
+        require(!rodada.pedidoVrfPendente, unicode"BingoGame: Previous VRF request still pending");
+        require(rodada.numerosSorteados.length < rodada.numeroMaximo, unicode"BingoGame: All numbers drawn");
 
         if (rodada.estado == EstadoRodada.Aberta) {
             rodada.estado = EstadoRodada.Sorteando;
@@ -293,9 +200,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         return requestId;
     }
 
-    /**
-     * @notice Callback function used by VRF Coordinator to return random numbers.
-     */
     function fulfillRandomWords(uint256 _requestId, uint256[] memory _randomWords) internal override {
         uint256 rodadaId = vrfRequestIdToRodadaId[_requestId];
         Rodada storage rodada = rodadas[rodadaId];
@@ -318,9 +222,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         _verificarVencedores(rodadaId);
     }
 
-    /**
-     * @notice Internal function to check for winners after a number is drawn.
-     */
     function _verificarVencedores(uint256 _rodadaId) internal {
         Rodada storage rodada = rodadas[_rodadaId];
         if (rodada.estado == EstadoRodada.Finalizada) return;
@@ -328,34 +229,29 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         bool vencedorEncontrado = false;
         for (uint i = 0; i < numParticipantes; i++) {
             uint256 cartelaId = rodada.listaCartelasParticipantes[i];
-            (uint256 id, uint8 linhas, uint8 colunas, address dono, bool numerosRegistrados, bool emUso, uint256 precoBase) = cartelaContract.cartelas(cartelaId);
+            (, uint8 linhas, uint8 colunas, address dono, , /*bool emUso*/, ) = cartelaContract.cartelas(cartelaId);
             uint[] memory numerosCartela = cartelaContract.getNumerosCartela(cartelaId);
             bool ganhou = false;
-            // Check Rows
             if (rodada.padroesVitoriaAtivos[PadraoVitoria.Linha]) {
                 if (_verificarLinhas(rodada, numerosCartela, linhas, colunas)) {
                     ganhou = true;
                 }
             }
-            // Check Columns
             if (!ganhou && rodada.padroesVitoriaAtivos[PadraoVitoria.Coluna]) {
                 if (_verificarColunas(rodada, numerosCartela, linhas, colunas)) {
                     ganhou = true;
                 }
             }
-            // Check Diagonals (if square)
             if (!ganhou && linhas == colunas && rodada.padroesVitoriaAtivos[PadraoVitoria.Diagonal]) {
                 if (_verificarDiagonais(rodada, numerosCartela, linhas, colunas)) {
                     ganhou = true;
                 }
             }
-            // Check Cartela Completa
             if (!ganhou && rodada.padroesVitoriaAtivos[PadraoVitoria.Cartela]) {
                 if (_verificarCartelaCompleta(rodada, numerosCartela)) {
                     ganhou = true;
                 }
             }
-            // Process Winner
             if (ganhou) {
                 bool jaAdicionado = false;
                 for(uint w=0; w < rodada.vencedores.length; w++) {
@@ -417,14 +313,12 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         uint8 linhas,
         uint8 colunas
     ) internal view returns (bool) {
-        // Diagonal principal
         bool diag1Completa = true;
         for (uint d = 0; d < linhas; d++) {
             if (!rodada.numerosSorteadosMap[numerosCartela[d * colunas + d]]) diag1Completa = false;
         }
         if (diag1Completa) return true;
 
-        // Diagonal secundária
         bool diag2Completa = true;
         for (uint d = 0; d < linhas; d++) {
             if (!rodada.numerosSorteadosMap[numerosCartela[d * colunas + (colunas - 1 - d)]]) diag2Completa = false;
@@ -450,7 +344,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         uint256 cartelaId,
         PadraoVitoria padrao
     ) internal {
-        // Verifica se o vencedor já foi registrado
         for (uint i = 0; i < rodada.vencedores.length; i++) {
             if (rodada.vencedores[i] == vencedor) {
                 return;
@@ -464,12 +357,10 @@ contract BingoGameContract is VRFConsumerBaseV2 {
     function _finalizarRodada(Rodada storage rodada) internal {
         rodada.estado = EstadoRodada.Finalizada;
 
-        // Calcula prêmios
         uint256 premioPorVencedor = rodada.premioTotal.div(rodada.vencedores.length);
         uint256 taxaAdmin = rodada.premioTotal.mul(TAXA_ADMIN).div(100);
         uint256 taxaPlataforma = rodada.premioTotal.mul(TAXA_PLATAFORMA).div(100);
 
-        // Distribui prêmios
         for (uint i = 0; i < rodada.vencedores.length; i++) {
             address vencedor = rodada.vencedores[i];
             rodada.premiosVencedores[vencedor] = premioPorVencedor;
@@ -478,13 +369,11 @@ contract BingoGameContract is VRFConsumerBaseV2 {
             emit PremioDistribuido(rodada.id, vencedor, premioPorVencedor);
         }
 
-        // Envia taxas
         (bool successAdmin, ) = admin.call{value: taxaAdmin}("");
         require(successAdmin, "BingoGame: Failed to send admin tax");
         (bool successPlataforma, ) = feeCollector.call{value: taxaPlataforma}("");
         require(successPlataforma, "BingoGame: Failed to send platform tax");
 
-        // Libera cartelas
         for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
             cartelaContract.marcarEmUso(rodada.listaCartelasParticipantes[i], false);
         }
@@ -501,16 +390,14 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         require(rodada.estado != EstadoRodada.Finalizada && rodada.estado != EstadoRodada.Cancelada,
             "BingoGame: Round already finalized or canceled");
 
-        // Libera cartelas
         for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
             cartelaContract.marcarEmUso(rodada.listaCartelasParticipantes[i], false);
         }
 
-        // Devolve prêmios se houver
         if (rodada.premioTotal > 0) {
             uint256 valorPorJogador = rodada.premioTotal.div(rodada.listaCartelasParticipantes.length);
             for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
-                (uint256 id, uint8 linhas, uint8 colunas, address dono, bool numerosRegistrados, bool emUso, uint256 precoBase) = cartelaContract.cartelas(rodada.listaCartelasParticipantes[i]);
+                (, , , address dono, , , ) = cartelaContract.cartelas(rodada.listaCartelasParticipantes[i]);
                 (bool success, ) = dono.call{value: valorPorJogador}("");
                 require(success, "BingoGame: Failed to return prize");
             }
@@ -520,7 +407,21 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         emit RodadaCancelada(_rodadaId, _motivo);
     }
 
-    // --- View Functions --- //
+    function setOperador(address _operador, bool _status) external apenasAdmin {
+        require(_operador != address(0), unicode"BingoGame: Operador não pode ser zero");
+        operadores[_operador] = _status;
+        emit OperadorAtualizado(_operador, _status);
+    }
+
+    function getUltimoRequestId(uint256 _rodadaId) 
+        external 
+        view 
+        rodadaExiste(_rodadaId) 
+        returns (uint256) 
+    {
+        return rodadas[_rodadaId].ultimoRequestId;
+    }
+
     function getNumerosSorteados(uint256 _rodadaId) 
         external 
         view 
@@ -568,7 +469,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
     }
 }
 
-// SafeMath library for safe arithmetic operations
 library SafeMath {
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
         uint256 c = a + b;
@@ -593,4 +493,3 @@ library SafeMath {
         return a / b;
     }
 }
-
