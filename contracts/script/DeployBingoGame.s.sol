@@ -1,0 +1,33 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "forge-std/Script.sol";
+import {BingoGameContract} from "../src/BingoGameContract.sol";
+import {CartelaContract} from "../src/CartelaContract.sol";
+
+contract DeployBingoGame is Script {
+    function setUp() public {}
+
+    function run() public {
+        // Parâmetros de deploy
+        address cartelaContractAddress = vm.envAddress("CARTELA_CONTRACT");
+        address vrfCoordinator = vm.envAddress("VRF_COORDINATOR");
+        uint64 subscriptionId = uint64(vm.envUint("VRF_SUBSCRIPTION_ID"));
+        bytes32 keyHash = vm.envBytes32("VRF_KEY_HASH");
+        address admin = vm.envAddress("ADMIN");
+        address feeCollector = vm.envAddress("FEE_COLLECTOR");
+
+        vm.startBroadcast();
+
+        BingoGameContract bingo = new BingoGameContract(
+            cartelaContractAddress,
+            vrfCoordinator,
+            subscriptionId,
+            keyHash,
+            admin,
+            feeCollector
+        );
+
+        vm.stopBroadcast();
+    }
+}

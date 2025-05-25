@@ -38,24 +38,24 @@ export const useContracts = () => {
       setContracts(prev => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        // Obter a rede atual
+        // Obter a rede atual e seu Chain ID
         const network = await provider.getNetwork();
-        let networkName = 'SEPOLIA'; // Default para testes
+        const chainId = network.chainId.toString();
 
-        // Verificar se estamos em uma rede suportada
-        if (!CONTRACT_ADDRESSES[networkName]) {
-          throw new Error(`Rede não suportada: ${network.name}`);
+        // Verificar se temos endereços de contrato configurados para este Chain ID
+        if (!CONTRACT_ADDRESSES[chainId]) {
+          throw new Error(`Rede não suportada ou endereços de contrato não configurados para o Chain ID: ${chainId}`);
         }
 
-        // Inicializar contratos
+        // Inicializar contratos com base no Chain ID
         const cartelaContract = new ethers.Contract(
-          CONTRACT_ADDRESSES[networkName].CARTELA_CONTRACT,
+          CONTRACT_ADDRESSES[chainId].CARTELA_CONTRACT,
           CartelaContractABI,
           signer
         );
 
         const bingoGameContract = new ethers.Contract(
-          CONTRACT_ADDRESSES[networkName].BINGO_GAME_CONTRACT,
+          CONTRACT_ADDRESSES[chainId].BINGO_GAME_CONTRACT,
           BingoGameContractABI,
           signer
         );

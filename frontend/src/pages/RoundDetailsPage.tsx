@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWeb3Auth } from '../lib/hooks/useWeb3Auth';
 import { useContracts } from '../lib/hooks/useContracts';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import Card from '../components/bingo/Card';
+import Button from '../components/bingo/Button';
 import { EstadoRodada, ESTADO_RODADA_TEXT } from '../lib/config';
 import BingoCard from '../components/bingo/BingoCard';
+import { ethers } from 'ethers';
 
 interface RoundInfo {
   id: number;
@@ -80,8 +81,10 @@ const RoundDetailsPage: React.FC = () => {
         
         // Processar participantes
         const participantPromises = participantEvents.map(async (event) => {
-          const cartelaId = event.args?.cartelaId.toNumber();
-          const jogador = event.args?.jogador;
+          // Assert event is EventLog to access args
+          const eventLog = event as unknown as ethers.EventLog;
+          const cartelaId = eventLog.args?.cartelaId.toNumber();
+          const jogador = eventLog.args?.jogador;
           
           // Obter detalhes da cartela
           const cartela = await cartelaContract.cartelas(cartelaId);
@@ -93,10 +96,12 @@ const RoundDetailsPage: React.FC = () => {
             rows: cartela.linhas,
             columns: cartela.colunas,
             numbers: numeros.map((n: any) => n.toNumber()),
-            isWinner: winnerEvents.some(e => 
-              e.args?.cartelaId.toString() === cartelaId.toString() &&
-              e.args?.vencedor.toLowerCase() === jogador.toLowerCase()
-            ),
+            isWinner: winnerEvents.some(e => {
+              // Assert event is EventLog to access args
+              const winnerEventLog = e as unknown as ethers.EventLog;
+              return winnerEventLog.args?.cartelaId.toString() === cartelaId.toString() &&
+                     winnerEventLog.args?.vencedor.toLowerCase() === jogador.toLowerCase();
+            }),
           };
         });
         
@@ -104,15 +109,20 @@ const RoundDetailsPage: React.FC = () => {
         setParticipants(participantsData);
         
         // Processar vencedores
-        const winnersData = winnerEvents.map(event => ({
-          cartelaId: event.args?.cartelaId.toNumber(),
-          address: event.args?.vencedor,
-        }));
+        const winnersData = winnerEvents.map(event => {
+          // Assert event is EventLog to access args
+          const eventLog = event as unknown as ethers.EventLog;
+          return {
+            cartelaId: eventLog.args?.cartelaId.toNumber(),
+            address: eventLog.args?.vencedor,
+          };
+        });
         setWinners(winnersData);
         
         // Processar números sorteados
         const drawnNumbersData = numberEvents.map(event => 
-          event.args?.numeroSorteado.toNumber()
+          // Assert event is EventLog to access args
+          (event as unknown as ethers.EventLog).args?.numeroSorteado.toNumber()
         );
         setDrawnNumbers(drawnNumbersData);
         

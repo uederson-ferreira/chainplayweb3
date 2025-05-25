@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import Button from '../base/Button';
-import Card from '../base/Card';
-import { useContracts } from '../../lib/hooks/useContracts';
-import { DEFAULT_CARD_CONFIG } from '../../lib/config';
+import Button from '../base/Button.js';
+import Card from '../base/Card.js';
+import { useContracts } from '../../lib/hooks/useContracts.js';
+import { DEFAULT_CARD_CONFIG } from '../../lib/config.js';
+import { useAppKitAccount, useAppKit } from '@reown/appkit/react';
 
 const CreateCardForm: React.FC = () => {
   const [rows, setRows] = useState(DEFAULT_CARD_CONFIG.ROWS);
@@ -13,9 +14,16 @@ const CreateCardForm: React.FC = () => {
   const [success, setSuccess] = useState<string | null>(null);
   
   const { cartelaContract, isLoading, error: contractError } = useContracts();
+  const { isConnected, address } = useAppKitAccount();
+  const { open } = useAppKit();
 
   const handleCreateCard = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isConnected) {
+      open({ view: 'Connect', namespace: 'eip155' });
+      return;
+    }
     
     if (!cartelaContract) {
       setError("Contrato não inicializado. Verifique sua conexão.");
@@ -27,13 +35,11 @@ const CreateCardForm: React.FC = () => {
       setError(null);
       setSuccess(null);
       
-      // Chamar o contrato para criar a cartela
       const tx = await cartelaContract.criarCartela(rows, columns);
       await tx.wait();
       
       setSuccess(`Cartela criada com sucesso! Aguarde a confirmação da transação.`);
       
-      // Resetar o formulário
       setRows(DEFAULT_CARD_CONFIG.ROWS);
       setColumns(DEFAULT_CARD_CONFIG.COLUMNS);
     } catch (err) {
@@ -47,6 +53,12 @@ const CreateCardForm: React.FC = () => {
   return (
     <Card className="max-w-md mx-auto">
       <h2 className="text-xl font-bold mb-4">Criar Nova Cartela</h2>
+      
+      {!isConnected && (
+        <div className="bg-yellow-100 text-yellow-700 p-3 rounded-md mb-4">
+          Conecte sua wallet para criar uma cartela
+        </div>
+      )}
       
       {contractError && (
         <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4">
@@ -102,10 +114,10 @@ const CreateCardForm: React.FC = () => {
         <Button
           type="submit"
           variant="primary"
-          fullWidth
-          disabled={isLoading || isCreating}
+          className="w-full"
+          disabled={isLoading || isCreating || !isConnected}
         >
-          {isCreating ? 'Criando...' : 'Criar Cartela'}
+          {!isConnected ? 'Conectar Wallet' : isCreating ? 'Criando...' : 'Criar Cartela'}
         </Button>
       </form>
     </Card>

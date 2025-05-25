@@ -31,7 +31,7 @@ export const useWeb3 = () => {
         
         // Obter saldo
         const balance = await provider.getBalance(address);
-        const formattedBalance = ethers.utils.formatEther(balance);
+        const formattedBalance = ethers.formatEther(balance);
         
         setState({
           network: network.name,

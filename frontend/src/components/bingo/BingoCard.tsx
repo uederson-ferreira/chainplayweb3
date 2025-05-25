@@ -1,6 +1,6 @@
 import React from 'react';
-import Card from '../base/Card';
-import { THEME_COLORS } from '../../lib/config';
+import Card from '../base/Card.js';
+import { THEME_COLORS } from '../../lib/config.js';
 
 interface BingoCardProps {
   id: number;

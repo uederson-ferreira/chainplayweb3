@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import Button from '../base/Button';
-import Card from '../base/Card';
-import { useContracts } from '../../lib/hooks/useContracts';
-import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth';
-import BingoCard from './BingoCard';
+import Button from '../base/Button.js';
+import Card from '../base/Card.js';
+import { useContracts } from '../../lib/hooks/useContracts.js';
+import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth.js';
+import BingoCard from './BingoCard.js';
 
 interface ParticipateFormProps {
   rodadaId: number;
@@ -14,7 +14,7 @@ interface ParticipateFormProps {
 interface UserCard {
   id: number;
   rows: number;
-  columns: numbers;
+  columns: number;
   owner: string;
   numbers: number[];
   isRegistered: boolean;
@@ -48,7 +48,7 @@ const ParticipateForm: React.FC<ParticipateFormProps> = ({
         const totalCards = nextCardId.toNumber();
         
         // Verificar cada cartela para encontrar as do usuário atual
-        const userCardsPromises = [];
+        const userCardsPromises: Promise<any>[] = [];
         for (let i = 0; i < totalCards; i++) {
           userCardsPromises.push(cartelaContract.cartelas(i));
         }

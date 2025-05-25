@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import Button from '../base/Button';
-import Card from '../base/Card';
-import { useContracts } from '../../lib/hooks/useContracts';
-import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth';
-import { EstadoRodada } from '../../lib/config';
-import RoundCard from './RoundCard';
-import BingoCard from './BingoCard';
+import Button from '../base/Button.js';
+import Card from '../base/Card.js';
+import { useContracts } from '../../lib/hooks/useContracts.js';
+import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth.js';
+import { EstadoRodada } from '../../lib/config.js';
+import RoundCard from './RoundCard.js';
+import BingoCard from './BingoCard.js';
 
 const PlayerPanel: React.FC = () => {
   const [userCards, setUserCards] = useState<any[]>([]);
@@ -31,7 +31,7 @@ const PlayerPanel: React.FC = () => {
         const totalCards = nextCardId.toNumber();
         
         // Verificar cada cartela para encontrar as do usuário atual
-        const userCardsPromises = [];
+        const userCardsPromises: Promise<any>[] = [];
         for (let i = 0; i < totalCards; i++) {
           userCardsPromises.push(cartelaContract.cartelas(i));
         }
@@ -86,10 +86,12 @@ const PlayerPanel: React.FC = () => {
         const events = await bingoGameContract.queryFilter(filter);
         
         // Extrair IDs das rodadas dos eventos
-        const roundIds = events.map(event => event.args?.rodadaId.toNumber());
+        const roundIds = events
+          .filter((event): event is ethers.EventLog => 'args' in event)
+          .map(event => event.args.rodadaId.toNumber());
         
         // Verificar quais rodadas estão ativas (estado Aberta)
-        const activeRoundIds = [];
+        const activeRoundIds: number[] = [];
         for (const id of roundIds) {
           const roundInfo = await bingoGameContract.rodadas(id);
           if (roundInfo.estado === EstadoRodada.Aberta) {

@@ -8,6 +8,9 @@ import { THEME_COLORS } from '../lib/config';
 const HomePage: React.FC = () => {
   const { isConnected, isAdmin, isPlayer, connect } = useWeb3Auth();
 
+  // Adicionar log para verificar o estado de conexão
+  console.log('HomePage - isConnected:', isConnected);
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="text-center mb-12">

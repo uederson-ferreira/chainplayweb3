@@ -1,5 +1,5 @@
 import React from 'react';
-import { THEME_COLORS } from '../../lib/config';
+import { THEME_COLORS } from '../../lib/config.js';
 
 type ButtonVariant = 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info' | 'outline';
 type ButtonSize = 'sm' | 'md' | 'lg';

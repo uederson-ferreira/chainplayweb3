@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import Button from '../base/Button';
-import Card from '../base/Card';
-import { useContracts } from '../../lib/hooks/useContracts';
-import { DEFAULT_CARD_CONFIG } from '../../lib/config';
+import Button from '../base/Button.js';
+import Card from '../base/Card.js';
+import { useContracts } from '../../lib/hooks/useContracts.js';
+import { DEFAULT_CARD_CONFIG } from '../../lib/config.js';
 
 const CreateRoundForm: React.FC = () => {
   const [numeroMaximo, setNumeroMaximo] = useState(DEFAULT_CARD_CONFIG.MAX_NUMBER);

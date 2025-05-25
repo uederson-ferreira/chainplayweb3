@@ -17,6 +17,11 @@ contract DeployScript is Script {
             deployer    // feeCollector
         );
         console.log("Cartela deployed to:", address(cartela));
+        
+        console.log("msg.sender:", msg.sender);
+        console.log("deployer:", deployer);
+        console.log("admin:", cartela.admin());
+        console.log("feeCollector:", cartela.feeCollector());
 
         // Deploy do contrato BingoGame
         // Para ambiente local, usamos endereços mock
@@ -30,9 +35,9 @@ contract DeployScript is Script {
         );
         console.log("BingoGame deployed to:", address(bingoGame));
 
-        // Definir o BingoGame como contrato do jogo no Cartela
-        cartela.setBingoGameContract(address(bingoGame));
-        console.log("BingoGame set as game contract in Cartela");
+        // A chamada setBingoGameContract NÃO deve estar aqui. Será feita separadamente por um endereço autorizado.
+        // cartela.setBingoGameContract(address(bingoGame));
+        // console.log("BingoGame set as game contract in Cartela");
 
         vm.stopBroadcast();
     }

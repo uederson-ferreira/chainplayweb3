@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import Button from '../base/Button';
-import Card from '../base/Card';
-import { useContracts } from '../../lib/hooks/useContracts';
+import Button from '../base/Button.js';
+import Card from '../base/Card.js';
+import { useContracts } from '../../lib/hooks/useContracts.js';
 
 interface RegisterCardNumbersFormProps {
   cartelaId: number;
@@ -37,7 +37,7 @@ const RegisterCardNumbersForm: React.FC<RegisterCardNumbersFormProps> = ({
 
   const handleRandomize = () => {
     const totalCells = rows * columns;
-    const newNumbers = [];
+    const newNumbers: number[] = [];
     const usedNumbers = new Set();
     
     for (let i = 0; i < totalCells; i++) {

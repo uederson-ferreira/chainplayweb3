@@ -1,13 +1,14 @@
 import React from 'react';
-import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth';
-import Button from '../base/Button';
-import { THEME_COLORS } from '../../lib/config';
+import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth.js';
+import Button from '../base/Button.js';
+import { THEME_COLORS } from '../../lib/config.js';
 
 const Header: React.FC = () => {
-  const { address, isConnected, connect, disconnect, isAdmin } = useWeb3Auth();
+  const { address, accounts, selectedAccount, isConnected, connect, disconnect, isAdmin } = useWeb3Auth();
 
   // Formatar endereço para exibição
   const formatAddress = (address: string) => {
+    if (!address) return '';
     return `${address.substring(0, 6)}...${address.substring(address.length - 4)}`;
   };
 
@@ -28,12 +29,17 @@ const Header: React.FC = () => {
         <div>
           {isConnected ? (
             <div className="flex items-center gap-4">
-              <span className="text-gray-600 bg-gray-100 px-3 py-1 rounded-full text-sm">
-                {formatAddress(address || '')}
-              </span>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              {/* Exibição do Endereço */}
+              {selectedAccount && (
+                <span className="text-gray-600 bg-gray-100 px-3 py-1 rounded-full text-sm">
+                  {formatAddress(selectedAccount)}
+                </span>
+              )}
+
+              {/* Botão Desconectar */}
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={disconnect}
               >
                 Desconectar

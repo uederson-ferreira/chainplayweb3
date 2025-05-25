@@ -1,25 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
-
 /**
  * @title CartelaContract
  * @dev Gerencia a criação e propriedade de cartelas de Bingo personalizáveis.
  * Inclui sistema de preços e validações de números únicos.
  */
 contract CartelaContract {
-    // Preço base para criação de cartela (em wei)
-    uint256 public precoBaseCartela;
-    
-    // Endereço que recebe as taxas
-    address public feeCollector;
-
-    // Endereço do contrato do jogo que pode marcar cartelas como em uso
-    address public bingoGameContract;
-
+    uint256 public precoBaseCartela; // Preço base para criação de cartela (em wei)
+    address public feeCollector; // Endereço que recebe as taxas
+    address public bingoGameContract; // Endereço do contrato do jogo que pode marcar cartelas como em uso
     address public admin; // Adicionar variável admin
-
+    
     mapping(address => bool) public operadores;
-
     /**
      * @dev Representa uma cartela de Bingo.
      * `numeros` armazena os números da cartela em um array unidimensional.

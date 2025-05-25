@@ -12,11 +12,14 @@ Este projeto e todos que participam dele estão comprometidos com um ambiente am
 
 1. Faça um fork do projeto
 2. Clone seu fork:
+
    ```bash
    git clone https://github.com/seu-usuario/bingoweb3.git
    cd bingoweb3
    ```
+
 3. Adicione o repositório original como upstream:
+
    ```bash
    git remote add upstream https://github.com/original-usuario/bingoweb3.git
    ```
@@ -24,6 +27,7 @@ Este projeto e todos que participam dele estão comprometidos com um ambiente am
 ### 2. Fluxo de Trabalho
 
 1. Mantenha seu fork atualizado:
+
    ```bash
    git fetch upstream
    git checkout main
@@ -31,6 +35,7 @@ Este projeto e todos que participam dele estão comprometidos com um ambiente am
    ```
 
 2. Crie uma branch para sua feature:
+
    ```bash
    git checkout -b feature/nome-da-sua-feature
    ```
@@ -38,11 +43,13 @@ Este projeto e todos que participam dele estão comprometidos com um ambiente am
 3. Faça suas alterações seguindo os padrões de código
 
 4. Faça commit das suas alterações:
+
    ```bash
    git commit -m "feat: descrição da sua feature"
    ```
 
 5. Envie para seu fork:
+
    ```bash
    git push origin feature/nome-da-sua-feature
    ```
@@ -52,12 +59,14 @@ Este projeto e todos que participam dele estão comprometidos com um ambiente am
 ### 3. Padrões de Código
 
 #### Smart Contracts
+
 - Use Solidity 0.8.x ou superior
 - Siga o [Style Guide do Solidity](https://docs.soliditylang.org/en/latest/style-guide.html)
 - Documente todas as funções públicas usando NatSpec
 - Escreva testes para todas as novas funcionalidades
 
 #### Frontend
+
 - Siga as [convenções do Next.js](https://nextjs.org/docs/basic-features/typescript)
 - Use TypeScript para todo novo código
 - Siga o [Style Guide do Airbnb](https://github.com/airbnb/javascript)
@@ -85,13 +94,15 @@ Use o padrão [Conventional Commits](https://www.conventionalcommits.org/):
 
 ## 🧪 Testes
 
-### Smart Contracts
+### Testes dos Contratos
+
 ```bash
 cd contracts
 forge test
 ```
 
-### Frontend
+### Testes Frontend
+
 ```bash
 cd frontend
 npm test
@@ -120,4 +131,4 @@ npm test
 
 ## 📫 Dúvidas?
 
-Se você tiver dúvidas, abra uma issue ou entre em contato com a equipe de manutenção. 
+Se você tiver dúvidas, abra uma issue ou entre em contato com a equipe de manutenção.

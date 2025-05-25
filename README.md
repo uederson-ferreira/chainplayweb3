@@ -6,7 +6,7 @@ Um projeto de Bingo descentralizado construído com tecnologia Web3, permitindo 
 
 O projeto está dividido em duas partes principais:
 
-```
+```tree
 .
 ├── contracts/          # Smart Contracts (Foundry)
 │   ├── src/           # Código fonte dos contratos
@@ -23,12 +23,14 @@ O projeto está dividido em duas partes principais:
 
 ## 🚀 Tecnologias Utilizadas
 
-### Smart Contracts
+### Tecnologias dos Contratos
+
 - [Foundry](https://book.getfoundry.sh/) - Framework para desenvolvimento de smart contracts
 - Solidity - Linguagem de programação para smart contracts
 - Hardhat - Ambiente de desenvolvimento Ethereum
 
-### Frontend
+### Tecnologias Frontend
+
 - Next.js - Framework React
 - TypeScript - Superset JavaScript com tipagem estática
 - Tailwind CSS - Framework CSS
@@ -68,7 +70,7 @@ npm install
 
 ## 🎮 Como Executar
 
-### Smart Contracts
+### Executar Contratos
 
 ```bash
 # Na pasta contracts/
@@ -77,7 +79,7 @@ forge build       # Compilar contratos
 forge script      # Executar scripts
 ```
 
-### Frontend
+### Executar Frontend
 
 ```bash
 # Na pasta frontend/
@@ -106,7 +108,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 ## 📧 Contato
 
-Seu Nome - [@seu_twitter](https://twitter.com/seu_twitter) - email@exemplo.com
+Seu Nome - [@seu_twitter](https://twitter.com/seu_twitter) - <email@exemplo.com>
 
 Link do Projeto: [https://github.com/seu-usuario/bingoweb3](https://github.com/seu-usuario/bingoweb3)
 
@@ -115,4 +117,4 @@ Link do Projeto: [https://github.com/seu-usuario/bingoweb3](https://github.com/s
 - [x] Configuração inicial do projeto
 - [x] Templates para Issues e Pull Requests
 - [x] CI/CD com GitHub Actions
-- [x] Proteção de branch main 
+- [x] Proteção de branch main

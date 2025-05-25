@@ -113,7 +113,6 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         s_keyHash = _keyHash;
         admin = _admin;
         feeCollector = _feeCollector;
-        cartelaContract.setBingoGameContract(address(this));
     }
 
     function iniciarRodada(

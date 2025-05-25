@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import RegisterCardNumbersForm from '../components/bingo/RegisterCardNumbersForm';
 import { useWeb3Auth } from '../lib/hooks/useWeb3Auth';
 import { useContracts } from '../lib/hooks/useContracts';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import Card from '../components/bingo/Card';
+import Button from '../components/bingo/Button';
 
 const RegisterNumbersPage: React.FC = () => {
   const { cardId } = useParams<{ cardId: string }>();

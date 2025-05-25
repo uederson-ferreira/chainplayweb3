@@ -7,9 +7,11 @@ assignees: ''
 ---
 
 ## 📝 Descrição
+
 Descreva as mudanças que você está propondo e por quê.
 
 ## 🎯 Tipo de Mudança
+
 - [ ] 🐛 Bug fix (mudança que corrige um problema)
 - [ ] ✨ Nova feature (mudança que adiciona funcionalidade)
 - [ ] 💥 Breaking change (correção ou feature que faria com que funcionalidades existentes não funcionassem como esperado)
@@ -20,6 +22,7 @@ Descreva as mudanças que você está propondo e por quê.
 - [ ] ✅ Teste (adicionando ou corrigindo testes)
 
 ## 🔍 Checklist
+
 - [ ] Meu código segue as diretrizes de estilo deste projeto
 - [ ] Eu fiz uma auto-revisão do meu próprio código
 - [ ] Eu comentei meu código, particularmente em áreas difíceis de entender
@@ -30,30 +33,38 @@ Descreva as mudanças que você está propondo e por quê.
 - [ ] Quaisquer mudanças dependentes foram mescladas e publicadas em módulos downstream
 
 ## 📸 Screenshots (se aplicável)
+
 Adicione screenshots para ajudar a explicar suas mudanças.
 
 ## 💻 Ambiente de Teste
+
 Descreva como você testou suas mudanças:
+
 - [ ] Testes unitários
 - [ ] Testes de integração
 - [ ] Testes manuais
 - [ ] Outro: [especifique]
 
 ## 🔄 Impacto nas Dependências
+
 Liste quaisquer dependências que foram adicionadas, removidas ou atualizadas.
 
 ## 📚 Documentação
+
 - [ ] Documentação foi atualizada
 - [ ] Não é necessário atualizar a documentação
 - [ ] Documentação será atualizada em um PR separado
 
 ## 🔍 Revisão de Código
+
 - [ ] Código foi revisado por pelo menos um outro desenvolvedor
 - [ ] Código está pronto para revisão
 
 ## ⚠️ Notas Importantes
+
 Adicione quaisquer notas importantes sobre a PR aqui.
 
 ## 🎯 Issues Relacionadas
+
 Fixes #(issue)
-Relacionado a #(issue) 
+Relacionado a #(issue)

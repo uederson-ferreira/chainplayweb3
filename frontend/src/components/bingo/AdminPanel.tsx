@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import type { Event } from 'ethers';
-import Button from '../base/Button';
-import Card from '../base/Card';
-import { useContracts } from '../../lib/hooks/useContracts';
-import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth';
-import { EstadoRodada } from '../../lib/config';
-import CreateRoundForm from './CreateRoundForm';
-import RoundCard from './RoundCard';
+import type { EventLog } from 'ethers';
+import Card from '../base/Card.js';
+import { useContracts } from '../../lib/hooks/useContracts.js';
+import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth.js';
+import { EstadoRodada } from '../../lib/config.js';
+import CreateRoundForm from './CreateRoundForm.js';
+import RoundCard from './RoundCard.js';
 
 interface RodadaIniciadaEvent {
   args: {
-    rodadaId: ethers.BigNumber;
+    rodadaId: ethers.BigNumberish;
   };
   event: string;
   eventSignature: string;

@@ -9,7 +9,9 @@ Contrato principal que gerencia o jogo de Bingo.
 #### Funções
 
 ##### `createGame(uint256 ticketPrice, uint256 maxPlayers)`
+
 Cria uma nova partida de Bingo.
+
 - **Parâmetros:**
   - `ticketPrice`: Preço em wei para cada cartela
   - `maxPlayers`: Número máximo de jogadores
@@ -18,7 +20,9 @@ Cria uma nova partida de Bingo.
   - `GameCreated(uint256 gameId, uint256 ticketPrice, uint256 maxPlayers)`
 
 ##### `joinGame(uint256 gameId)`
+
 Permite que um jogador entre em uma partida.
+
 - **Parâmetros:**
   - `gameId`: ID da partida
 - **Requisitos:**
@@ -29,7 +33,9 @@ Permite que um jogador entre em uma partida.
   - `PlayerJoined(uint256 gameId, address player)`
 
 ##### `startGame(uint256 gameId)`
+
 Inicia uma partida de Bingo.
+
 - **Parâmetros:**
   - `gameId`: ID da partida
 - **Requisitos:**
@@ -39,7 +45,9 @@ Inicia uma partida de Bingo.
   - `GameStarted(uint256 gameId)`
 
 ##### `callNumber(uint256 gameId)`
+
 Sorteia um número para a partida.
+
 - **Parâmetros:**
   - `gameId`: ID da partida
 - **Requisitos:**
@@ -49,7 +57,9 @@ Sorteia um número para a partida.
   - `NumberCalled(uint256 gameId, uint256 number)`
 
 ##### `claimBingo(uint256 gameId)`
+
 Permite que um jogador reclame a vitória.
+
 - **Parâmetros:**
   - `gameId`: ID da partida
 - **Requisitos:**
@@ -72,10 +82,12 @@ event BingoClaimed(uint256 indexed gameId, address indexed winner);
 
 Contrato que gerencia as cartelas de Bingo.
 
-#### Funções
+#### Funções da Cartela
 
 ##### `generateCard(uint256 gameId)`
+
 Gera uma nova cartela para um jogador.
+
 - **Parâmetros:**
   - `gameId`: ID da partida
 - **Retorno:** Array com os números da cartela
@@ -83,7 +95,9 @@ Gera uma nova cartela para um jogador.
   - `CardGenerated(uint256 gameId, address player, uint256[] numbers)`
 
 ##### `verifyBingo(uint256 gameId, address player, uint256[] calledNumbers)`
+
 Verifica se um jogador fez Bingo.
+
 - **Parâmetros:**
   - `gameId`: ID da partida
   - `player`: Endereço do jogador
@@ -157,8 +171,11 @@ interface BingoCardProps {
 ### `/api/games`
 
 #### `GET /api/games`
+
 Lista todas as partidas ativas.
+
 - **Resposta:**
+
   ```json
   {
     "games": [
@@ -175,15 +192,20 @@ Lista todas as partidas ativas.
   ```
 
 #### `POST /api/games`
+
 Cria uma nova partida.
+
 - **Request:**
+
   ```json
   {
     "ticketPrice": "string",
     "maxPlayers": "number"
   }
   ```
+
 - **Resposta:**
+
   ```json
   {
     "gameId": "number",
@@ -194,8 +216,11 @@ Cria uma nova partida.
 ### `/api/games/:gameId`
 
 #### `GET /api/games/:gameId`
+
 Obtém detalhes de uma partida específica.
+
 - **Resposta:**
+
   ```json
   {
     "id": "number",
@@ -210,8 +235,11 @@ Obtém detalhes de uma partida específica.
   ```
 
 #### `POST /api/games/:gameId/join`
+
 Entra em uma partida.
+
 - **Resposta:**
+
   ```json
   {
     "transactionHash": "string",
@@ -220,8 +248,11 @@ Entra em uma partida.
   ```
 
 #### `POST /api/games/:gameId/start`
+
 Inicia uma partida.
+
 - **Resposta:**
+
   ```json
   {
     "transactionHash": "string"
@@ -229,8 +260,11 @@ Inicia uma partida.
   ```
 
 #### `POST /api/games/:gameId/call`
+
 Sorteia um número.
+
 - **Resposta:**
+
   ```json
   {
     "number": "number",
@@ -239,11 +273,14 @@ Sorteia um número.
   ```
 
 #### `POST /api/games/:gameId/claim`
+
 Reclama a vitória.
+
 - **Resposta:**
+
   ```json
   {
     "success": "boolean",
     "transactionHash": "string"
   }
-  ``` 
+  ```

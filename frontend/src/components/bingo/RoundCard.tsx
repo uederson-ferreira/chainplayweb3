@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import Button from '../base/Button';
-import Card from '../base/Card';
-import { useContracts } from '../../lib/hooks/useContracts';
-import { EstadoRodada, ESTADO_RODADA_TEXT } from '../../lib/config';
+import Button from '../base/Button.js';
+import Card from '../base/Card.js';
+import { useContracts } from '../../lib/hooks/useContracts.js';
+import { EstadoRodada, ESTADO_RODADA_TEXT } from '../../lib/config.js';
 
 interface RoundCardProps {
   rodadaId: number;
@@ -70,7 +70,7 @@ const RoundCard: React.FC<RoundCardProps> = ({
 
   if (isLoading) {
     return (
-      <Card className="animate-pulse">
+      <Card className="animate-pulse" data-testid="loading-card">
         <div className="h-24 bg-gray-200 rounded"></div>
       </Card>
     );

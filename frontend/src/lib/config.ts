@@ -2,8 +2,13 @@
 
 // Endereços dos contratos implantados
 export const CONTRACT_ADDRESSES = {
-  // Sepolia testnet
-  SEPOLIA: {
+  // Rede local Anvil/Hardhat (Chain ID 31337)
+  "31337": {
+    CARTELA_CONTRACT: import.meta.env.VITE_CARTELA_CONTRACT_ADDRESS,
+    BINGO_GAME_CONTRACT: import.meta.env.VITE_BINGOGAME_CONTRACT_ADDRESS,
+  },
+  // Sepolia testnet (Chain ID 11155111)
+  "11155111": {
     CARTELA_CONTRACT: "0x0000000000000000000000000000000000000000", // Será atualizado após deploy
     BINGO_GAME_CONTRACT: "0x0000000000000000000000000000000000000000", // Será atualizado após deploy
   }
@@ -11,7 +16,23 @@ export const CONTRACT_ADDRESSES = {
 
 // Configuração da rede
 export const CHAIN_CONFIG = {
-  SEPOLIA: {
+  "31337": {
+    chainId: 31337,
+    name: "Localhost",
+    currency: {
+      name: "Ether",
+      symbol: "ETH",
+      decimals: 18,
+    },
+    rpcUrls: ["http://127.0.0.1:8545"], // Endereço padrão do Anvil/Hardhat
+    blockExplorers: {
+      default: {
+        name: "Etherscan",
+        url: "#", // Não há block explorer para rede local normalmente
+      },
+    },
+  },
+  "11155111": {
     chainId: 11155111,
     name: "Sepolia",
     currency: {

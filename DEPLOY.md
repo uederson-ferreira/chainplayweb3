@@ -15,29 +15,33 @@ Este documento descreve o processo de deploy do BingoWeb3, incluindo os smart co
 ### 1. Preparação
 
 1. Configure as variáveis de ambiente:
+
    ```bash
    cp ENV.md .env
    # Edite o arquivo .env com suas configurações
    ```
 
 2. Verifique se você tem ETH suficiente na rede alvo:
-   - Sepolia Testnet: https://sepoliafaucet.com/
+   - Sepolia Testnet: <https://sepoliafaucet.com/>
    - Mainnet: Certifique-se de ter ETH suficiente para gas
 
 ### 2. Deploy dos Contratos
 
 1. Compile os contratos:
+
    ```bash
    cd contracts
    forge build
    ```
 
 2. Execute os testes:
+
    ```bash
    forge test
    ```
 
 3. Deploy para a rede de teste:
+
    ```bash
    forge script script/Deploy.s.sol:DeployScript --rpc-url $NEXT_PUBLIC_RPC_URL --broadcast --verify
    ```
@@ -47,19 +51,21 @@ Este documento descreve o processo de deploy do BingoWeb3, incluindo os smart co
 ### 3. Verificação
 
 1. Verifique os contratos no Etherscan:
-   - Sepolia: https://sepolia.etherscan.io/
-   - Mainnet: https://etherscan.io/
+   - Sepolia: <https://sepolia.etherscan.io/>
+   - Mainnet: <https://etherscan.io/>
 
 2. Execute testes de integração:
+
    ```bash
    forge test --fork-url $NEXT_PUBLIC_RPC_URL
    ```
 
 ## 🎨 Deploy do Frontend
 
-### 1. Preparação
+### 1. Preparação 1
 
 1. Configure as variáveis de ambiente do frontend:
+
    ```bash
    cd frontend
    cp ../ENV.md .env.local
@@ -67,11 +73,13 @@ Este documento descreve o processo de deploy do BingoWeb3, incluindo os smart co
    ```
 
 2. Instale as dependências:
+
    ```bash
    npm install
    ```
 
 3. Execute os testes:
+
    ```bash
    npm test
    ```
@@ -79,11 +87,13 @@ Este documento descreve o processo de deploy do BingoWeb3, incluindo os smart co
 ### 2. Build
 
 1. Gere o build de produção:
+
    ```bash
    npm run build
    ```
 
 2. Teste localmente:
+
    ```bash
    npm run start
    ```
@@ -93,16 +103,19 @@ Este documento descreve o processo de deploy do BingoWeb3, incluindo os smart co
 #### Opção 1: Vercel (Recomendado)
 
 1. Instale a CLI da Vercel:
+
    ```bash
    npm i -g vercel
    ```
 
 2. Faça login:
+
    ```bash
    vercel login
    ```
 
 3. Deploy:
+
    ```bash
    vercel
    ```
@@ -110,16 +123,19 @@ Este documento descreve o processo de deploy do BingoWeb3, incluindo os smart co
 #### Opção 2: AWS Amplify
 
 1. Configure o AWS Amplify:
+
    ```bash
    amplify init
    ```
 
 2. Adicione o frontend:
+
    ```bash
    amplify add frontend
    ```
 
 3. Deploy:
+
    ```bash
    amplify push
    ```
@@ -127,6 +143,7 @@ Este documento descreve o processo de deploy do BingoWeb3, incluindo os smart co
 #### Opção 3: Deploy Manual
 
 1. Gere os arquivos estáticos:
+
    ```bash
    npm run export
    ```
@@ -208,4 +225,4 @@ Em caso de problemas:
 1. Verifique os logs
 2. Consulte a documentação
 3. Verifique o status da rede
-4. Entre em contato com a equipe de suporte 
+4. Entre em contato com a equipe de suporte

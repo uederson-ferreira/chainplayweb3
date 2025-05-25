@@ -115,15 +115,18 @@ EMAIL_FROM=
 ## Variáveis por Ambiente
 
 ### Desenvolvimento Local
+
 - NEXT_PUBLIC_*
 - NODE_ENV
 - DEBUG
 
 ### Testes
+
 - Todas as variáveis de desenvolvimento
 - TEST_*
 
 ### Produção
+
 - Todas as variáveis
 - NODE_ENV=production
-- Chaves de produção 
+- Chaves de produção

@@ -1,8 +1,8 @@
 import React from 'react';
 import PlayerPanel from '../components/bingo/PlayerPanel';
 import { useWeb3Auth } from '../lib/hooks/useWeb3Auth';
-import Card from '../components/ui/Card';
-import Button from '../components/ui/Button';
+import Card from '../components/bingo/Card';
+import Button from '../components/bingo/Button';
 
 const PlayerPage: React.FC = () => {
   const { isConnected, connect } = useWeb3Auth();
