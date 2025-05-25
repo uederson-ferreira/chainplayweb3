@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import Button from '../ui/Button';
-import Card from '../ui/Card';
+import Button from '../base/Button';
+import Card from '../base/Card';
 import { useContracts } from '../../lib/hooks/useContracts';
 import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth';
 import { EstadoRodada } from '../../lib/config';

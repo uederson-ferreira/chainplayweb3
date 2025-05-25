@@ -1,8 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useWeb3Auth } from '../lib/hooks/useWeb3Auth';
-import Button from '../components/ui/Button';
-import Card from '../components/ui/Card';
+import Button from '../components/base/Button';
+import Card from '../components/base/Card';
 import { THEME_COLORS } from '../lib/config';
 
 const HomePage: React.FC = () => {

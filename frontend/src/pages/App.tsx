@@ -9,7 +9,6 @@ import AdminPage from '../pages/AdminPage';
 import PlayerPage from '../pages/PlayerPage';
 import ParticipateRoundPage from '../pages/ParticipateRoundPage';
 import RoundDetailsPage from '../pages/RoundDetailsPage';
-import './App.css';
 
 function App() {
   return (

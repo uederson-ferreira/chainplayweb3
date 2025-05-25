@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import type { EventLog, Result } from 'ethers';
+import type { Event } from 'ethers';
 import Button from '../base/Button';
 import Card from '../base/Card';
 import { useContracts } from '../../lib/hooks/useContracts';
@@ -9,10 +9,17 @@ import { EstadoRodada } from '../../lib/config';
 import CreateRoundForm from './CreateRoundForm';
 import RoundCard from './RoundCard';
 
-interface RodadaIniciadaEvent extends Omit<EventLog, 'args'> {
-  args: Result & {
-    rodadaId: bigint;
+interface RodadaIniciadaEvent {
+  args: {
+    rodadaId: ethers.BigNumber;
   };
+  event: string;
+  eventSignature: string;
+  address: string;
+  blockHash: string;
+  blockNumber: number;
+  transactionHash: string;
+  logIndex: number;
 }
 
 const AdminPanel: React.FC = () => {

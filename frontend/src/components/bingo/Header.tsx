@@ -1,6 +1,6 @@
 import React from 'react';
 import { useWeb3Auth } from '../../lib/hooks/useWeb3Auth';
-import Button from '../ui/Button';
+import Button from '../base/Button';
 import { THEME_COLORS } from '../../lib/config';
 
 const Header: React.FC = () => {
