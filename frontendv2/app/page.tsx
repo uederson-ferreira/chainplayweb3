@@ -9,11 +9,13 @@ import { createClient, isSupabaseConfigured } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import WalletConnectButton from "@/components/web3/wallet-connect-button"
 import { useRouter } from "next/navigation"
+import LoginForm from "@/components/auth/login-form"
 
 export default function HomePage() {
   const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [web3Error, setWeb3Error] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -83,9 +85,23 @@ export default function HomePage() {
       </div>
     )
   }
+  
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="container mx-auto px-4 py-10 flex justify-center">
+          <LoginForm onLoginSuccess={() => setIsAuthenticated(true)} />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      {/* Login */}
+      <div className="container mx-auto px-4 py-10 flex justify-center">
+        <LoginForm />
+      </div>
       {/* Header */}
       <header className="border-b border-white/10 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">

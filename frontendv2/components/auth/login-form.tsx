@@ -9,10 +9,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Github, Chrome, CheckCircle, Play } from "lucide-react"
 import { useRouter } from "next/navigation"
 
+type LoginFormProps = {
+  onLoginSuccess?: () => void
+}
+
 // Instância única do Supabase para este componente
 let supabaseClient: any = null
 
-export default function LoginForm() {
+export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [fullName, setFullName] = useState("")
