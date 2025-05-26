@@ -285,6 +285,8 @@ yarn-error.log*
 /old_frontend/.env.development.local
 /old_frontend/.env.test.local
 /old_frontend/.env.production.local
+/old_frontend/artifacts
+/contracts/lib/forge-std/test/fixtures/broadcast.log.json
 
 # Hardhat
 /cache
