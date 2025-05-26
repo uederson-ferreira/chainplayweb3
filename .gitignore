@@ -2,8 +2,10 @@
 /node_modules
 /.pnp
 .pnp.js
-/frontend/node_modules
+/frontendv2/node_modules
 /contracts/node_modules
+/old_frontend/node_modules
+*/node_modules
 
 # Cache do Next.js (caso use SWC)
 .swc/
@@ -33,10 +35,10 @@ Thumbs.db
 # Produção
 /build
 /dist
-/frontend/.next
-/frontend/out
-/frontend/build
-/frontend/dist
+/frontendv2/.next
+/frontendv2/out
+/frontendv2/build
+/frontendv2/dist
 
 # Arquivos de ambiente
 .env
@@ -44,7 +46,7 @@ Thumbs.db
 .env.development.local
 .env.test.local
 .env.production.local
-/frontend/.env*
+/frontendv2/.env*
 /contracts/.env*
 
 # Logs
@@ -152,3 +154,140 @@ yarn-error.log*
 # Arquivos de sistema
 .DS_Store
 Thumbs.db 
+
+# Dependências
+/node_modules
+/.pnp
+.pnp.js
+/frontend/node_modules
+/frontendv2/node_modules
+/old_frontend/node_modules
+*/node_modules
+
+# Cache do Next.js (caso use SWC)
+.swc/
+/frontend/.swc/
+/frontendv2/.swc/
+/old_frontend/.swc/
+
+# Cache do ESLint
+.eslintcache
+/frontend/.eslintcache
+/frontendv2/.eslintcache
+/old_frontend/.eslintcache
+
+# Arquivos temporários
+*.tmp
+*.temp
+/frontend/*.tmp
+/frontendv2/*.tmp
+/old_frontend/*.tmp
+/frontend/*.temp
+/frontendv2/*.temp
+/old_frontend/*.temp
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+/frontend/.DS_Store
+/frontendv2/.DS_Store
+/old_frontend/.DS_Store
+
+# Testes
+/coverage
+/frontend/coverage
+/frontendv2/coverage
+/old_frontend/coverage
+/contracts/coverage
+
+# Produção e build
+/build
+/dist
+/frontend/.next
+/frontendv2/.next
+/old_frontend/.next
+/frontend/out
+/frontendv2/out
+/old_frontend/out
+/frontend/build
+/frontendv2/build
+/old_frontend/build
+/frontend/dist
+/frontendv2/dist
+/old_frontend/dist
+
+# Arquivos de ambiente
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+/frontend/.env*
+/frontendv2/.env*
+/old_frontend/.env*
+/contracts/.env*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/frontend/npm-debug.log*
+/frontendv2/npm-debug.log*
+/old_frontend/npm-debug.log*
+/frontend/yarn-debug.log*
+/frontendv2/yarn-debug.log*
+/old_frontend/yarn-debug.log*
+/frontend/yarn-error.log*
+/frontendv2/yarn-error.log*
+/old_frontend/yarn-error.log*
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Foundry
+/contracts/cache
+/contracts/out
+/contracts/broadcast
+/contracts/cache-zk
+/contracts/out-zk
+/contracts/artifacts
+/contracts/coverage
+/contracts/coverage.json
+/contracts/gas-report.txt
+
+# Next.js e Vercel
+/frontend/.vercel
+/frontendv2/.vercel
+/old_frontend/.vercel
+
+# Arquivos de cache
+.cache/
+/frontend/.cache
+/frontendv2/.cache
+/old_frontend/.cache
+
+# Arquivos de deploy
+/frontend/.env.production
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+/frontendv2/.env.production
+/frontendv2/.env.local
+/frontendv2/.env.development.local
+/frontendv2/.env.test.local
+/frontendv2/.env.production.local
+/old_frontend/.env.production
+/old_frontend/.env.local
+/old_frontend/.env.development.local
+/old_frontend/.env.test.local
+/old_frontend/.env.production.local
+
+# Hardhat
+/cache
+/artifacts
+/typechain
+/typechain-types
