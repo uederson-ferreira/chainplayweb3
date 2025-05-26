@@ -5,10 +5,30 @@
 /frontend/node_modules
 /contracts/node_modules
 
+# Cache do Next.js (caso use SWC)
+.swc/
+
+# Cache do ESLint
+.eslintcache
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
 # Testes
 /coverage
 /frontend/coverage
 /contracts/coverage
+
+/frontendv2/node_modules
+/frontendv2/.next
+/frontendv2/.env*
+/frontendv2/.cache
+/frontendv2/.eslintcache
 
 # Produção
 /build
