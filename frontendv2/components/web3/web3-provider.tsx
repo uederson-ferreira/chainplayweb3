@@ -13,7 +13,6 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             retry: (failureCount, error) => {
-              // Não tentar novamente para erros de COOP
               if (error?.message?.includes("Cross-Origin-Opener-Policy")) {
                 return false
               }
@@ -28,23 +27,17 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true)
-
-    // Adicionar listener para erros não capturados
     const handleError = (event: ErrorEvent) => {
       if (event.error?.message?.includes("Cross-Origin-Opener-Policy")) {
         console.warn("COOP error detected, but continuing with limited wallet functionality")
         setError("Some wallet features may be limited due to browser security policies")
       }
     }
-
     window.addEventListener("error", handleError)
     return () => window.removeEventListener("error", handleError)
   }, [])
 
-  if (!mounted) {
-    return <>{children}</>
-  }
-
+  // Sempre renderize os provedores, mas controle o conteúdo de children
   return (
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
@@ -53,7 +46,7 @@ export function Web3Provider({ children }: { children: React.ReactNode }) {
             {error}
           </div>
         )}
-        {children}
+        {mounted ? children : <div>Carregando...</div>}
       </QueryClientProvider>
     </WagmiProvider>
   )

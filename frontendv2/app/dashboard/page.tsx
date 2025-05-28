@@ -16,11 +16,18 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  
+  // Mova o useAccount para o nível superior do componente
   const { isConnected, address } = useAccount()
+  const [accountData, setAccountData] = useState<{ isConnected: boolean; address?: string }>({
+    isConnected: false,
+  })
 
   useEffect(() => {
     setMounted(true)
-  }, [])
+    // Atualize os dados da conta quando o useAccount mudar
+    setAccountData({ isConnected, address })
+  }, [isConnected, address])
 
   useEffect(() => {
     if (!mounted) return
@@ -94,7 +101,9 @@ export default function DashboardPage() {
       const demoUser = {
         id: "demo-user",
         email: "demo@chainplay.com",
-        name: isConnected ? `Wallet User (${address?.slice(0, 6)}...${address?.slice(-4)})` : "Demo User",
+        name: accountData.isConnected
+          ? `Wallet User (${accountData.address?.slice(0, 6)}...${accountData.address?.slice(-4)})`
+          : "Demo User",
       }
 
       localStorage.setItem(
@@ -110,7 +119,7 @@ export default function DashboardPage() {
     }
 
     checkAuth()
-  }, [router, mounted, isConnected, address])
+  }, [router, mounted, accountData.isConnected, accountData.address])
 
   if (!mounted) {
     return (
@@ -171,17 +180,17 @@ export default function DashboardPage() {
             Bem-vindo, {profile?.full_name || user.name || user.email}!
           </h1>
           <p className="text-slate-400">Escolha um jogo para começar a jogar</p>
-          {isConnected && (
+          {accountData.isConnected && (
             <div className="mt-2 flex items-center gap-2">
               <Wallet className="h-4 w-4 text-green-400" />
               <span className="text-green-400 text-sm">
-                Carteira conectada: {address?.slice(0, 6)}...{address?.slice(-4)}
+                Carteira conectada: {accountData.address?.slice(0, 6)}...{accountData.address?.slice(-4)}
               </span>
             </div>
           )}
         </div>
 
-        {!isConnected && (
+        {!accountData.isConnected && (
           <div className="mb-8">
             <Card className="bg-blue-900/50 border-blue-700">
               <CardContent className="p-4">
@@ -230,7 +239,7 @@ export default function DashboardPage() {
           />
         </div>
 
-        {!isConnected && (
+        {!accountData.isConnected && (
           <div className="mt-8">
             <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
               <CardHeader>
