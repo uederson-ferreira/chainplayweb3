@@ -66,7 +66,7 @@ export function useBingoContract() {
 
 // Hook para ler dados da rodada
 export function useRodadaData(rodadaId?: bigint) {
-  const { data: rodada } = useReadContract({
+  const { data: rodadaRaw } = useReadContract({
     address: CONTRACTS.BINGO,
     abi: BINGO_ABI,
     functionName: "rodadas",
@@ -76,7 +76,34 @@ export function useRodadaData(rodadaId?: bigint) {
     },
   })
 
+  // Converter array em objeto para facilitar o uso
+  const rodada = rodadaRaw ? {
+    id: rodadaRaw[0], // uint256
+    estado: rodadaRaw[1], // enum (0=Aguardando, 1=Ativa, 2=Finalizada)
+    numeroMaximo: rodadaRaw[2], // uint8
+    ultimoRequestId: rodadaRaw[3], // uint256
+    pedidoVrfPendente: rodadaRaw[4], // bool
+    premiosDistribuidos: rodadaRaw[5], // bool
+  } : null
+
   return {
     rodada,
+    rodadaRaw,
   }
 }
+
+// export function useRodadaData(rodadaId?: bigint) {
+//   const { data: rodada } = useReadContract({
+//     address: CONTRACTS.BINGO,
+//     abi: BINGO_ABI,
+//     functionName: "rodadas",
+//     args: rodadaId ? [rodadaId] : undefined,
+//     query: {
+//       enabled: !!rodadaId,
+//     },
+//   })
+
+//   return {
+//     rodada,
+//   }
+// }
