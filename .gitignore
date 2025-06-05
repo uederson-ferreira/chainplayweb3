@@ -293,3 +293,42 @@ yarn-error.log*
 /artifacts
 /typechain
 /typechain-types
+
+# Bibliotecas externas
+chainlink-brownie-contracts/
+openzeppelin-contracts/
+openzeppelin-contracts-upgradeable/
+optimism/
+forge-std/
+erc4626-tests/
+solmate/
+safe-contracts/
+kontrol-cheatcodes/
+solady/
+lib-keccak/
+openzeppelin-contracts-v5/
+solady-v0.0.245/
+ds-test/
+
+# Pasta lib (padrão do Foundry)
+lib/
+
+# Outros arquivos comuns para ignorar
+node_modules/
+.env
+.env.local
+cache/
+out/
+artifacts/
+typechain/
+coverage/
+.nyc_output/
+
+# Ignorar toda a pasta lib
+lib/
+
+# Ou ignorar bibliotecas específicas
+**/openzeppelin-contracts*/
+**/forge-std*/
+**/solady*/
+**/ds-test*/
