@@ -142,6 +142,8 @@ const publicClient = createPublicClient({
   transport: http("http://127.0.0.1:8545"),
 })
 
+// VERSÃO CORRIGIDA - use-cartela-contract.ts
+
 export function useCartelaContract() {
   const { writeContract, data: hash, isPending, error } = useWriteContract()
 
@@ -156,77 +158,55 @@ export function useCartelaContract() {
     functionName: "precoBaseCartela",
   })
 
-  // Criar cartela com pagamento - VERSÃO OTIMIZADA
+  // CORREÇÃO: Criar cartela SEM pagamento se preço for 0
   const criarCartela = async (linhas: number, colunas: number) => {
-    const valorPagamento = precoBase || parseEther("0.01")
-    console.log('💰 Criando cartela com:', {
-      valor: (Number(valorPagamento) / 1e18).toFixed(4) + ' ETH',
-      valorEmWei: valorPagamento.toString(),
+    console.log('💰 Preço base detectado:', {
+      precoBase: precoBase?.toString(),
+      precoEmETH: precoBase ? (Number(precoBase) / 1e18).toFixed(6) : '0'
+    })
+    
+    // Se não há precoBase ou é 0, não enviar value
+    const shouldSendValue = precoBase && precoBase > 0
+    const valorPagamento = shouldSendValue ? precoBase : undefined
+    
+    console.log('🚀 Criando cartela:', {
       linhas,
-      colunas
+      colunas,
+      shouldSendValue,
+      valor: valorPagamento ? (Number(valorPagamento) / 1e18).toFixed(6) + ' ETH' : 'GRÁTIS'
+    })
+    
+    // Corrigir os tipos dos parâmetros
+    const baseParams = {
+      address: CONTRACTS.CARTELA,
+      abi: CARTELA_ABI,
+      functionName: "criarCartela" as const,
+      args: [linhas, colunas] as const, // ← CORREÇÃO: adicionar 'as const'
+    }
+    
+    const txParams = shouldSendValue 
+      ? { ...baseParams, value: valorPagamento }
+      : baseParams
+    
+    return writeContract(txParams)
+  }
+
+
+  // Registrar números com gas otimizado
+  const registrarNumeros = async (cartelaId: bigint, numeros: bigint[]) => {
+    console.log('📝 Registrando números:', {
+      cartelaId: cartelaId.toString(),
+      quantidade: numeros.length,
+      primeiros3: numeros.slice(0, 3).map(n => n.toString())
     })
     
     return writeContract({
       address: CONTRACTS.CARTELA,
       abi: CARTELA_ABI,
-      functionName: "criarCartela",
-      args: [linhas, colunas],
-      value: valorPagamento,
-      // GAS OTIMIZADO PARA CRIAÇÃO:
-      gas: BigInt(150000), // ← Gas limitado
-      gasPrice: BigInt(1000000000), // ← 1 gwei fixo
+      functionName: "registrarNumerosCartela",
+      args: [cartelaId, numeros] as const, // ← CORREÇÃO: adicionar 'as const'
     })
   }
-
-  // Registrar números da cartela
-  const registrarNumeros = async (cartelaId: bigint, numeros: bigint[]) => {
-      console.log('📝 Iniciando registrarNumeros com gas otimizado...')
-      console.log('📊 Parâmetros:', {
-        cartelaId: cartelaId.toString(),
-        numerosCount: numeros.length,
-        primeiros5: numeros.slice(0, 5).map(n => n.toString())
-      })
-      
-      // Validações antes de enviar
-      if (numeros.length !== 25) {
-        throw new Error(`Número incorreto de elementos: ${numeros.length}. Esperado: 25`)
-      }
-      
-      // Verificar duplicatas
-      const numerosUnicos = new Set(numeros.map(n => n.toString()))
-      if (numerosUnicos.size !== numeros.length) {
-        throw new Error('Números duplicados encontrados')
-      }
-      
-      // Verificar range (1-99)
-      for (const numero of numeros) {
-        const n = Number(numero)
-        if (n < 1 || n > 99) {
-          throw new Error(`Número fora do range: ${n}. Deve estar entre 1-99`)
-        }
-      }
-      
-      console.log('✅ Validações passaram, enviando transação com gas otimizado...')
-      
-      try {
-        const result = await writeContract({
-          address: CONTRACTS.CARTELA,
-          abi: CARTELA_ABI,
-          functionName: "registrarNumerosCartela",
-          args: [cartelaId, numeros],
-          // GAS OTIMIZADO PARA REDE LOCAL:
-          gas: BigInt(200000), // ← REDUZIDO de 800000 para 200000
-          gasPrice: BigInt(1000000000), // ← 1 gwei fixo (muito baixo)
-        })
-        
-        console.log('📤 Transação enviada com gas otimizado:', result)
-        return result
-        
-      } catch (writeError: any) {
-        console.error('❌ Erro na writeContract:', writeError)
-        throw writeError
-      }
-    }
 
   return {
     criarCartela,
@@ -355,17 +335,28 @@ export function useUserCartelas() {
         console.log('📋 Logs do usuário:', cartelaLogs)
 
         if (cartelaLogs.length > 0) {
-          // Extrair IDs das cartelas dos topics
-          const cardIds = cartelaLogs.map(log => {
+          console.log('📝 Processando logs do usuário...')
+          
+          // Extrair IDs das cartelas dos topics com debugging
+          const cardIds = cartelaLogs.map((log, index) => {
+            console.log(`🔍 Log ${index}:`, {
+              topics: log.topics,
+              topic1: log.topics[1],
+              address: log.address
+            })
+            
             // O topic[1] contém o cartelaId (indexed parameter)
             const cartelaIdHex = log.topics[1]
             if (cartelaIdHex) {
-              return BigInt(cartelaIdHex)
+              const cartelaId = BigInt(cartelaIdHex)
+              console.log(`🆔 ID extraído do log ${index}:`, cartelaId.toString())
+              return cartelaId
             }
+            console.log(`❌ Nenhum ID encontrado no log ${index}`)
             return null
           }).filter(Boolean) as bigint[]
 
-          console.log('🆔 IDs extraídos:', cardIds)
+          console.log('🆔 IDs finais extraídos:', cardIds.map(id => id.toString()))
           setUserCardIds(cardIds)
           return
         }

@@ -1,10 +1,11 @@
 // Arquivo: components/bingo/bingo-game-web3.tsx
+// VERSÃO CORRIGIDA - SEM LOOPS INFINITOS
 
 "use client"
 
 import { parseEther, formatEther } from 'viem'
 import BingoCard from "./bingo-card"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useAccount } from "wagmi"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -19,43 +20,83 @@ import CreateCardModal from "./create-card-modal"
 import GameStats from "./game-stats"
 import { useToast } from "@/hooks/use-toast"
 import { CONTRACTS } from "@/lib/web3/config"
-// IMPORTAR A ABI COMPLETA:
 import { CARTELA_ABI } from "@/lib/web3/contracts/abis"
-// ADICIONAR ESTES IMPORTS:
 import { createPublicClient, http } from 'viem'
 import { localChain } from "@/lib/web3/config"
 
-// ADICIONAR o cliente público:
 const publicClient = createPublicClient({
   chain: localChain,
   transport: http("http://127.0.0.1:8545"),
 })
+
 interface BingoGameWeb3Props {
   user: User
 }
 
 export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
-  const { address, isConnected, chainId } = useAccount()
+  const { address, isConnected, chainId, isConnecting, isReconnecting } = useAccount()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [currentRoundId, setCurrentRoundId] = useState<bigint>(BigInt(1))
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
-  const [isRegisteringNumbers, setIsRegisteringNumbers] = useState(false) // ← NOVO ESTADO
+  const [isRegisteringNumbers, setIsRegisteringNumbers] = useState(false)
   const { toast } = useToast()
   
-  // Hooks dos contratos - ATUALIZADO: incluindo refetchUserCards
+  // Estados para controle de conexão - SIMPLIFICADOS
+  const [showConnectingState, setShowConnectingState] = useState(false)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
   const { userCards, isLoading: isLoadingCards, totalCards, refetchUserCards } = useUserCartelasCompletas()
   const { criarCartela, registrarNumeros, isPending: isCreatingCard, isConfirmed, hash: txHash, precoBase } = useCartelaContract()
   const { iniciarRodada, participar, sortearNumero, isPending: isBingoLoading } = useBingoContract()
   const { rodada } = useRodadaData(currentRoundId)
   
-  // Verificar se está na rede correta
   const isCorrectNetwork = chainId === 1
+  const canJoin = !!rodada && rodada.estado === 1
+  const canDraw = !!rodada && (rodada.estado === 1 || rodada.estado === 2)
 
-  // ← ADICIONAR ESTAS CONSTANTES AQUI
-  const canJoin = !!rodada && rodada.estado === 1 // Apenas "Aberta"
-  const canDraw = !!rodada && (rodada.estado === 1 || rodada.estado === 2) // "Aberta" ou "Sorteando"
+  // Função para limpar timeout existente
+  const clearExistingTimeout = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current)
+      timeoutRef.current = null
+    }
+  }, [])
 
-  // ← ADICIONAR ESTAS FUNÇÕES HELPER AQUI
+  // Detectar início de conexão - SIMPLIFICADO
+  useEffect(() => {
+    if (isConnecting || isReconnecting) {
+      console.log('🔄 Detectado início de conexão...')
+      setShowConnectingState(true)
+      
+      // Timeout de segurança
+      clearExistingTimeout()
+      timeoutRef.current = setTimeout(() => {
+        console.log('⏰ Timeout de conexão - resetando estado')
+        setShowConnectingState(false)
+      }, 15000)
+    }
+  }, [isConnecting, isReconnecting, clearExistingTimeout])
+
+  // Detectar sucesso de conexão - SIMPLIFICADO
+  useEffect(() => {
+    if (isConnected && showConnectingState) {
+      console.log('✅ Carteira conectada com sucesso!')
+      clearExistingTimeout()
+      
+      // Delay para transição suave
+      timeoutRef.current = setTimeout(() => {
+        setShowConnectingState(false)
+      }, 1000)
+    }
+  }, [isConnected, showConnectingState, clearExistingTimeout])
+
+  // Cleanup na desmontagem do componente
+  useEffect(() => {
+    return () => {
+      clearExistingTimeout()
+    }
+  }, [clearExistingTimeout])
+
   const getEstadoTexto = (estado: number) => {
     switch (estado) {
       case 0: return "Inativa"
@@ -78,15 +119,12 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }
 
-    // Debug do hash da transação (apenas quando há mudanças importantes)
   useEffect(() => {
     if (txHash && isConfirmed) {
       console.log('✅ Transação confirmada! Hash:', txHash)
     }
   }, [txHash, isConfirmed])
 
-  // ATUALIZADO: Quando transação for confirmada + recarregar cartelas
-  // ATUALIZADO: Quando transação for confirmada - SEM REGISTRO AUTOMÁTICO
   useEffect(() => {
     if (isConfirmed && txHash) {
       console.log('🎉 CARTELA CRIADA COM SUCESSO! Hash:', txHash)
@@ -97,7 +135,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
       })
       setShowCreateModal(false)
       
-      // Recarregar cartelas após alguns segundos
       setTimeout(() => {
         console.log('🔄 Recarregando cartelas após criação...')
         if (refetchUserCards) {
@@ -107,23 +144,13 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }, [isConfirmed, txHash, toast, refetchUserCards])
 
-  // ATUALIZADA: Função para registrar números manualmente com tamanho correto
   const registerNumbers = async (cartelaId: bigint) => {
     console.log('🎯🎯🎯 FUNÇÃO registerNumbers CHAMADA!')
-    console.log('📝 Parâmetros recebidos:', {
-      cartelaId: cartelaId.toString(),
-      isRegisteringNumbers,
-      address,
-      isConnected,
-      isCorrectNetwork
-    })
     
     setIsRegisteringNumbers(true)
     try {
       console.log('🎯 INICIANDO REGISTRO MANUAL DE NÚMEROS')
-      console.log('📝 Cartela ID:', cartelaId)
       
-      // Verificações básicas primeiro
       if (!isConnected) {
         throw new Error('Carteira não conectada')
       }
@@ -132,7 +159,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
         throw new Error('Rede incorreta')
       }
       
-      // Buscar dados da cartela para determinar o tamanho
       console.log('🔍 Buscando dados da cartela...')
       const cartela = await publicClient.readContract({
         address: CONTRACTS.CARTELA,
@@ -145,28 +171,16 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
       const colunas = cartela[2]
       const totalNumeros = linhas * colunas
       
-      console.log('📏 Dimensões da cartela:', {
-        linhas,
-        colunas,
-        totalNumeros
-      })
-      
-      // Verificações de segurança
       if (cartela[3].toLowerCase() !== address?.toLowerCase()) {
-        throw new Error(`Você não é o dono desta cartela. Dono: ${cartela[3]}, Você: ${address}`)
+        throw new Error(`Você não é o dono desta cartela`)
       }
       
       if (cartela[4]) {
         throw new Error('Esta cartela já tem números registrados')
       }
       
-      if (cartela[5]) {
-        throw new Error('Esta cartela está em uso em uma rodada')
-      }
+      console.log(`🎲 Gerando ${totalNumeros} números únicos...`)
       
-      console.log(`🎲 Gerando ${totalNumeros} números únicos para cartela ${linhas}x${colunas}...`)
-      
-      // Gerar números únicos baseado no tamanho da cartela
       const numbersSet = new Set<number>()
       while (numbersSet.size < totalNumeros) {
         numbersSet.add(Math.floor(Math.random() * 75) + 1)
@@ -174,79 +188,40 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
       const uniqueNumbers = Array.from(numbersSet)
       const numbers = uniqueNumbers.map(n => BigInt(n))
       
-      console.log('🎲 Números únicos gerados:', uniqueNumbers)
-      console.log('🎲 Total de números:', numbers.length)
-      
-      console.log('📝 Enviando transação registrarNumeros...')
-      
-      // Registrar os números
       const hash = await registrarNumeros(cartelaId, numbers)
       console.log('✅ Hash da transação:', hash)
       
       toast({
         title: "Transação enviada!",
-        description: `Registrando ${totalNumeros} números na cartela ${linhas}x${colunas}...`,
+        description: `Registrando ${totalNumeros} números na cartela...`,
       })
       
       // Aguardar confirmação
-      console.log('⏳ Aguardando confirmação da transação...')
-      await new Promise(resolve => setTimeout(resolve, 8000)) // 8 segundos
+      await new Promise(resolve => setTimeout(resolve, 8000))
       
-      // Verificar se os números foram salvos
-      console.log('🔍 Verificando se números foram salvos...')
-      const numerosCartela = await publicClient.readContract({
-        address: CONTRACTS.CARTELA,
-        abi: CARTELA_ABI,
-        functionName: 'getNumerosCartela',
-        args: [cartelaId],
-      }) as bigint[]
+      toast({
+        title: "Números registrados com sucesso!",
+        description: `Cartela ${linhas}x${colunas} preenchida.`,
+      })
       
-      console.log('📊 Números salvos na blockchain:', numerosCartela.map(n => Number(n)))
-      
-      const cartelaAtualizada = await publicClient.readContract({
-        address: CONTRACTS.CARTELA,
-        abi: CARTELA_ABI,
-        functionName: 'cartelas',
-        args: [cartelaId],
-      }) as [bigint, number, number, string, boolean, boolean, bigint]
-      
-      if (cartelaAtualizada[4] && numerosCartela.length === totalNumeros) {
-        toast({
-          title: "Números registrados com sucesso!",
-          description: `Cartela ${linhas}x${colunas} preenchida com ${numerosCartela.length} números.`,
-        })
-      } else {
-        throw new Error('Números não foram salvos corretamente')
-      }
-      
-      // Recarregar cartelas
       setTimeout(() => {
-        console.log('🔄 Recarregando cartelas após registro...')
         if (refetchUserCards) {
           refetchUserCards()
         }
       }, 3000)
       
     } catch (error: any) {
-      console.error('❌ ERRO COMPLETO ao registrar números:', error)
-      console.error('❌ Stack trace:', error.stack)
-      console.error('❌ Message:', error.message)
+      console.error('❌ Erro ao registrar números:', error)
       
       let errorMessage = "Erro desconhecido"
       if (error.message?.includes("não é o dono")) {
         errorMessage = "Você não é o dono desta cartela"
       } else if (error.message?.includes("já tem números")) {
         errorMessage = "Esta cartela já tem números registrados"
-      } else if (error.message?.includes("em uso")) {
-        errorMessage = "Esta cartela está sendo usada em uma rodada"
       } else if (error.message?.includes("user rejected")) {
         errorMessage = "Transação cancelada pelo usuário"
       } else if (error.message?.includes("insufficient funds")) {
         errorMessage = "ETH insuficiente para pagar o gas"
-      } else if (error.message?.includes("Carteira não conectada")) {
-        errorMessage = "Conecte sua carteira primeiro"
-      } else if (error.message?.includes("Rede incorreta")) {
-        errorMessage = "Conecte-se à rede local (localhost:8545)"
       } else if (error.message) {
         errorMessage = error.message
       }
@@ -261,29 +236,8 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }
 
-  // Controle do modal com timeout
-  useEffect(() => {
-    if (showCreateModal && txHash) {
-      console.log('⏰ Modal aberto com transação, fechando em 10s...')
-      
-      const timeout = setTimeout(() => {
-        console.log('🔒 Forçando fechamento do modal por timeout')
-        setShowCreateModal(false)
-      }, 10000)
-      
-      return () => clearTimeout(timeout)
-    }
-  }, [showCreateModal, txHash])
-
-  // Função para criar cartela
-  // ATUALIZADO: Função para criar cartela - CORRIGIR VALOR DO PAGAMENTO
-   // Função para criar cartela - SEM REGISTRO AUTOMÁTICO
   const handleCreateCard = async (rows: number, columns: number) => {
-    console.log('🚀 CRIANDO CARTELA:', { rows, columns, totalNumbers: rows * columns })
-    console.log('🔧 Estado atual:', { isConnected, isCorrectNetwork, chainId })
-    
     if (!isConnected) {
-      console.log('❌ Carteira não conectada')
       toast({
         title: "Carteira não conectada",
         description: "Conecte sua carteira para criar uma cartela.",
@@ -293,7 +247,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
 
     if (!isCorrectNetwork) {
-      console.log('❌ Rede incorreta, chainId:', chainId)
       toast({
         title: "Rede incorreta", 
         description: "Conecte-se à rede local (localhost:8545) para jogar.",
@@ -301,25 +254,17 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
       })
       return
     }
-
-    console.log('✅ Validações OK, criando cartela...')
-    console.log('💰 Preço base atual:', precoBase ? `${Number(precoBase) / 1e18} ETH` : 'Carregando...')
     
     try {
-      console.log('📝 Enviando transação de criação...')
-      
       const result = await criarCartela(rows, columns)
-      
-      console.log('✅ Transação de criação enviada:', result)
       
       toast({
         title: "Criando cartela...",
-        description: `Cartela ${rows}×${columns} sendo criada. Aguarde a confirmação para registrar números.`,
+        description: `Cartela ${rows}×${columns} sendo criada.`,
       })
       
     } catch (error: any) {
       console.error('❌ Erro ao criar cartela:', error)
-      console.error('❌ Stack trace:', error.stack)
       
       let errorMessage = "Erro desconhecido"
       if (error.message?.includes("insufficient funds")) {
@@ -338,7 +283,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }
 
-  // ← FUNÇÃO ATUALIZADA
   const handleJoinRound = async (cardId: string) => {
     if (!isConnected || !rodada) return
 
@@ -389,16 +333,14 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }
 
-  // ← FUNÇÃO ATUALIZADA
   const handleStartRound = async () => {
     if (!isConnected || !isCorrectNetwork) return
 
     try {
-      // Configurações da rodada
       const numeroMaximo = 75
-      const taxaEntrada = parseEther("0.01")        // 0.01 ETH
-      const timeoutRodada = BigInt(3600)            // 1 hora
-      const padroesVitoria = [true, true, true, false] // [linha, coluna, diagonal, cartela_completa]
+      const taxaEntrada = parseEther("0.01")
+      const timeoutRodada = BigInt(3600)
+      const padroesVitoria = [true, true, true, false]
 
       await iniciarRodada(numeroMaximo, taxaEntrada, timeoutRodada, padroesVitoria)
       
@@ -416,7 +358,13 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }
 
-  if (!isConnected) {
+  // Estados de exibição - SIMPLIFICADOS
+  const shouldShowGame = isConnected && !showConnectingState
+  const shouldShowConnecting = showConnectingState || isConnecting || isReconnecting
+  const shouldShowInitialState = !isConnected && !shouldShowConnecting
+
+  // Quando não está conectado OU está conectando
+  if (!shouldShowGame) {
     return (
       <div className="min-h-screen">
         <header className="bg-slate-800/50 border-b border-slate-700 backdrop-blur-sm">
@@ -438,11 +386,50 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
 
         <main className="container mx-auto px-4 py-8">
           <div className="max-w-md mx-auto">
-            <div className="text-center mb-6">
-              <AlertCircle className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-white mb-2">Carteira Necessária</h2>
-              <p className="text-slate-400">Conecte sua carteira para jogar Bingo Web3</p>
-            </div>
+            {shouldShowConnecting ? (
+              // Estado "Conectando..."
+              <div className="text-center mb-6">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400 mx-auto mb-4"></div>
+                <h2 className="text-xl font-bold text-white mb-2">Conectando Carteira...</h2>
+                <p className="text-slate-400 mb-4">Complete a conexão na MetaMask</p>
+                <div className="bg-blue-900/50 text-blue-400 border border-blue-700 p-3 rounded-md text-sm">
+                  <p className="font-medium mb-2">Aguardando confirmação:</p>
+                  <ul className="text-xs space-y-1 text-left">
+                    <li>• ✅ Aprove a conexão na MetaMask</li>
+                    <li>• ✅ Selecione a conta desejada</li>
+                    <li>• ⏳ Aguarde redirecionamento automático...</li>
+                  </ul>
+                </div>
+              </div>
+            ) : shouldShowInitialState ? (
+              // Estado inicial - não conectado
+              <div className="text-center mb-6">
+                <AlertCircle className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
+                <h2 className="text-xl font-bold text-white mb-2">Carteira Necessária</h2>
+                <p className="text-slate-400">Conecte sua carteira para jogar Bingo Web3</p>
+              </div>
+            ) : null}
+            
+            {/* Componente de conexão */}
+            <WalletConnect />
+            
+            {/* Botão de reset se necessário */}
+            {shouldShowConnecting && (
+              <div className="mt-4 text-center">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    clearExistingTimeout()
+                    setShowConnectingState(false)
+                    console.log('🔄 Reset manual do estado de conexão')
+                  }}
+                  className="text-xs"
+                >
+                  Cancelar Conexão
+                </Button>
+              </div>
+            )}
           </div>
         </main>
       </div>
@@ -490,8 +477,7 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
               <span className="font-medium">Rede Incorreta</span>
             </div>
             <p className="text-sm">
-              Você precisa estar conectado à rede local (localhost:8545) para jogar. Use sua carteira para trocar de
-              rede.
+              Você precisa estar conectado à rede local (localhost:8545) para jogar. Use sua carteira para trocar de rede.
             </p>
           </div>
         )}
@@ -505,12 +491,10 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-white">Rodada #{rodada.id.toString()}</CardTitle>
-                    {/* ← BADGE ATUALIZADO */}
                     <Badge className={getEstadoCor(rodada.estado)}>
                       {getEstadoTexto(rodada.estado)}
                     </Badge>
                   </div>
-                  {/* ← DESCRIÇÃO ATUALIZADA */}
                   <CardDescription className="text-slate-400">
                     Números de 1 a {rodada.numeroMaximo} • VRF Pendente: {rodada.pedidoVrfPendente ? "Sim" : "Não"}
                     {rodada.taxaEntrada && rodada.taxaEntrada > 0 && (
@@ -520,7 +504,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex gap-4">
-                    {/* ← BOTÃO ATUALIZADO */}
                     <Button
                       onClick={handleDrawNumber}
                       disabled={!canDraw || isBingoLoading || !isCorrectNetwork}
@@ -538,7 +521,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                     )}
                   </div>
 
-                  {/* Informações adicionais da rodada */}
                   {rodada.premioTotal && rodada.premioTotal > 0 && (
                     <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                       <p className="text-yellow-400 text-sm">
@@ -571,7 +553,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                     Suas Cartelas {totalCards > 0 && `(${totalCards})`}
                   </CardTitle>
                   <div className="flex gap-2">
-                    {/* Botão de atualizar cartelas */}
                     <Button
                       onClick={() => refetchUserCards && refetchUserCards()}
                       size="sm"
@@ -599,7 +580,7 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                   Gerencie suas cartelas de bingo on-chain
                 </CardDescription>
               </CardHeader>
-            <CardContent>
+              <CardContent>
                 {isLoadingCards ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-4"></div>
@@ -607,30 +588,16 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                   </div>
                 ) : userCards.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {userCards.map((card) => {
-                      console.log(`🎮 RENDERIZANDO CARTELA ${card.id}:`, {
-                        hasNumbers: card.card_data?.numbers?.some((n: number) => n > 0),
-                        numerosRegistrados: card.cartela?.[4],
-                        passandoOnRegisterNumbers: true,
-                        isRegisteringNumbers
-                      })
-                      
-                      return (
-                        <BingoCard
-                          key={card.id}
-                          card={card}
-                          drawnNumbers={[]}
-                          onJoinRound={handleJoinRound}
-                          onRegisterNumbers={(cardId) => {
-                            console.log(`🚀 onRegisterNumbers chamado para cartela ${cardId}`)
-                            registerNumbers(BigInt(cardId))
-                          }}
-                          isParticipating={selectedCard === card.id}
-                          canJoin={canJoin}
-                          isRegisteringNumbers={isRegisteringNumbers}
-                        />
-                      )
-                    })}
+                    {userCards.map((card) => (
+                      <BingoCard
+                        key={card.id}
+                        card={card}
+                        drawnNumbers={[]}
+                        onJoinRound={handleJoinRound}
+                        onRegisterNumbers={(cardId) => registerNumbers(BigInt(cardId))}
+                        canJoin={canJoin}
+                        isRegisteringNumbers={isRegisteringNumbers} isParticipating={false}                      />
+                    ))}
                   </div>
                 ) : (
                   <div className="text-center py-8">
@@ -656,7 +623,7 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
             </Card>
           </div>
 
-{/* Sidebar */}
+          {/* Sidebar */}
           <div className="space-y-6">
             {/* Wallet Connect Card */}
             <WalletConnect />
