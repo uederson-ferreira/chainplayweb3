@@ -1,5 +1,8 @@
+// Arquivo: components/bingo/bingo-game-web3.tsx
+
 "use client"
 
+import { parseEther, formatEther } from 'viem'
 import BingoCard from "./bingo-card"
 import { useState, useEffect } from "react"
 import { useAccount } from "wagmi"
@@ -10,14 +13,23 @@ import { ArrowLeft, Plus, Play, Users, Zap, AlertCircle, Network, RefreshCw } fr
 import Link from "next/link"
 import type { User } from "@supabase/supabase-js"
 import WalletConnect from "@/components/web3/wallet-connect"
-import { useCartelaContract, useProximoCartelaId, useUserCartelasCompletas } from "@/lib/web3/hooks/use-cartela-contract"
+import { useCartelaContract, useUserCartelasCompletas } from "@/lib/web3/hooks/use-cartela-contract"
 import { useBingoContract, useRodadaData } from "@/lib/web3/hooks/use-bingo-contract"
 import CreateCardModal from "./create-card-modal"
 import GameStats from "./game-stats"
 import { useToast } from "@/hooks/use-toast"
 import { CONTRACTS } from "@/lib/web3/config"
+// IMPORTAR A ABI COMPLETA:
 import { CARTELA_ABI } from "@/lib/web3/contracts/abis"
+// ADICIONAR ESTES IMPORTS:
+import { createPublicClient, http } from 'viem'
+import { localChain } from "@/lib/web3/config"
 
+// ADICIONAR o cliente público:
+const publicClient = createPublicClient({
+  chain: localChain,
+  transport: http("http://127.0.0.1:8545"),
+})
 interface BingoGameWeb3Props {
   user: User
 }
@@ -27,95 +39,225 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [currentRoundId, setCurrentRoundId] = useState<bigint>(BigInt(1))
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
+  const [isRegisteringNumbers, setIsRegisteringNumbers] = useState(false) // ← NOVO ESTADO
   const { toast } = useToast()
   
   // Hooks dos contratos - ATUALIZADO: incluindo refetchUserCards
   const { userCards, isLoading: isLoadingCards, totalCards, refetchUserCards } = useUserCartelasCompletas()
-  const { criarCartela, registrarNumeros, isPending: isCreatingCard, isConfirmed, hash: txHash } = useCartelaContract()
+  const { criarCartela, registrarNumeros, isPending: isCreatingCard, isConfirmed, hash: txHash, precoBase } = useCartelaContract()
   const { iniciarRodada, participar, sortearNumero, isPending: isBingoLoading } = useBingoContract()
   const { rodada } = useRodadaData(currentRoundId)
-  const proximoId = useProximoCartelaId()
   
   // Verificar se está na rede correta
-  const isCorrectNetwork = chainId === 31337
+  const isCorrectNetwork = chainId === 1
 
-  // Debug setup - executa uma vez por mudança
-  useEffect(() => {
-    console.log('✅ Setup:', {
-      contracts: CONTRACTS,
-      chainId,
-      isConnected,
-      address: address?.slice(0, 10) + '...'
-    })
-  }, [chainId, isConnected, address])
+  // ← ADICIONAR ESTAS CONSTANTES AQUI
+  const canJoin = !!rodada && rodada.estado === 1 // Apenas "Aberta"
+  const canDraw = !!rodada && (rodada.estado === 1 || rodada.estado === 2) // "Aberta" ou "Sorteando"
 
-  // Debug do hash da transação
-  useEffect(() => {
-    if (txHash) {
-      console.log('📄 Hash da transação:', txHash)
-      console.log('⏳ isCreatingCard:', isCreatingCard)
-      console.log('✅ isConfirmed:', isConfirmed)
+  // ← ADICIONAR ESTAS FUNÇÕES HELPER AQUI
+  const getEstadoTexto = (estado: number) => {
+    switch (estado) {
+      case 0: return "Inativa"
+      case 1: return "Aberta"
+      case 2: return "Sorteando"
+      case 3: return "Finalizada"
+      case 4: return "Cancelada"
+      default: return "Desconhecido"
     }
-  }, [txHash, isCreatingCard, isConfirmed])
+  }
+
+  const getEstadoCor = (estado: number) => {
+    switch (estado) {
+      case 0: return "bg-gray-500/20 text-gray-400 border-gray-500/30"
+      case 1: return "bg-green-500/20 text-green-400 border-green-500/30"
+      case 2: return "bg-blue-500/20 text-blue-400 border-blue-500/30"
+      case 3: return "bg-purple-500/20 text-purple-400 border-purple-500/30"
+      case 4: return "bg-red-500/20 text-red-400 border-red-500/30"
+      default: return "bg-gray-500/20 text-gray-400 border-gray-500/30"
+    }
+  }
+
+    // Debug do hash da transação (apenas quando há mudanças importantes)
+  useEffect(() => {
+    if (txHash && isConfirmed) {
+      console.log('✅ Transação confirmada! Hash:', txHash)
+    }
+  }, [txHash, isConfirmed])
 
   // ATUALIZADO: Quando transação for confirmada + recarregar cartelas
+  // ATUALIZADO: Quando transação for confirmada - SEM REGISTRO AUTOMÁTICO
   useEffect(() => {
     if (isConfirmed && txHash) {
-      console.log('🎉 TRANSAÇÃO CONFIRMADA! Hash:', txHash)
-      console.log('📊 Próximo ID:', proximoId)
+      console.log('🎉 CARTELA CRIADA COM SUCESSO! Hash:', txHash)
       
       toast({
         title: "Cartela criada!",
-        description: "Agora registrando números automaticamente...",
+        description: "Agora clique em 'Registrar Números' para preencher sua cartela.",
       })
       setShowCreateModal(false)
       
-      // NOVO: Recarregar cartelas após 3 segundos
+      // Recarregar cartelas após alguns segundos
       setTimeout(() => {
         console.log('🔄 Recarregando cartelas após criação...')
         if (refetchUserCards) {
           refetchUserCards()
         }
       }, 3000)
-      
-      // Registrar números automaticamente
-      if (proximoId) {
-        console.log('🔢 Iniciando registro de números para cartela ID:', proximoId - BigInt(1))
-        registerNumbers(proximoId - BigInt(1))
-      }
     }
-  }, [isConfirmed, txHash, toast, proximoId, refetchUserCards])
+  }, [isConfirmed, txHash, toast, refetchUserCards])
 
-  // ATUALIZADO: Função para registrar números automaticamente + recarregar
+  // ATUALIZADA: Função para registrar números manualmente com tamanho correto
   const registerNumbers = async (cartelaId: bigint) => {
+    console.log('🎯🎯🎯 FUNÇÃO registerNumbers CHAMADA!')
+    console.log('📝 Parâmetros recebidos:', {
+      cartelaId: cartelaId.toString(),
+      isRegisteringNumbers,
+      address,
+      isConnected,
+      isCorrectNetwork
+    })
+    
+    setIsRegisteringNumbers(true)
     try {
-      console.log('🎲 Gerando números aleatórios...')
-      const numbers = Array.from({ length: 25 }, () => BigInt(Math.floor(Math.random() * 75) + 1))
-      console.log('🎲 Números gerados:', numbers.map(n => Number(n)))
+      console.log('🎯 INICIANDO REGISTRO MANUAL DE NÚMEROS')
+      console.log('📝 Cartela ID:', cartelaId)
       
-      console.log('📝 Registrando números na blockchain...')
-      await registrarNumeros(cartelaId, numbers)
+      // Verificações básicas primeiro
+      if (!isConnected) {
+        throw new Error('Carteira não conectada')
+      }
       
-      toast({
-        title: "Números registrados!",
-        description: "Sua cartela está pronta para jogar!",
+      if (!isCorrectNetwork) {
+        throw new Error('Rede incorreta')
+      }
+      
+      // Buscar dados da cartela para determinar o tamanho
+      console.log('🔍 Buscando dados da cartela...')
+      const cartela = await publicClient.readContract({
+        address: CONTRACTS.CARTELA,
+        abi: CARTELA_ABI,
+        functionName: 'cartelas',
+        args: [cartelaId],
+      }) as [bigint, number, number, string, boolean, boolean, bigint]
+      
+      const linhas = cartela[1]
+      const colunas = cartela[2]
+      const totalNumeros = linhas * colunas
+      
+      console.log('📏 Dimensões da cartela:', {
+        linhas,
+        colunas,
+        totalNumeros
       })
       
-      // NOVO: Recarregar cartelas após registrar números
+      // Verificações de segurança
+      if (cartela[3].toLowerCase() !== address?.toLowerCase()) {
+        throw new Error(`Você não é o dono desta cartela. Dono: ${cartela[3]}, Você: ${address}`)
+      }
+      
+      if (cartela[4]) {
+        throw new Error('Esta cartela já tem números registrados')
+      }
+      
+      if (cartela[5]) {
+        throw new Error('Esta cartela está em uso em uma rodada')
+      }
+      
+      console.log(`🎲 Gerando ${totalNumeros} números únicos para cartela ${linhas}x${colunas}...`)
+      
+      // Gerar números únicos baseado no tamanho da cartela
+      const numbersSet = new Set<number>()
+      while (numbersSet.size < totalNumeros) {
+        numbersSet.add(Math.floor(Math.random() * 75) + 1)
+      }
+      const uniqueNumbers = Array.from(numbersSet)
+      const numbers = uniqueNumbers.map(n => BigInt(n))
+      
+      console.log('🎲 Números únicos gerados:', uniqueNumbers)
+      console.log('🎲 Total de números:', numbers.length)
+      
+      console.log('📝 Enviando transação registrarNumeros...')
+      
+      // Registrar os números
+      const hash = await registrarNumeros(cartelaId, numbers)
+      console.log('✅ Hash da transação:', hash)
+      
+      toast({
+        title: "Transação enviada!",
+        description: `Registrando ${totalNumeros} números na cartela ${linhas}x${colunas}...`,
+      })
+      
+      // Aguardar confirmação
+      console.log('⏳ Aguardando confirmação da transação...')
+      await new Promise(resolve => setTimeout(resolve, 8000)) // 8 segundos
+      
+      // Verificar se os números foram salvos
+      console.log('🔍 Verificando se números foram salvos...')
+      const numerosCartela = await publicClient.readContract({
+        address: CONTRACTS.CARTELA,
+        abi: CARTELA_ABI,
+        functionName: 'getNumerosCartela',
+        args: [cartelaId],
+      }) as bigint[]
+      
+      console.log('📊 Números salvos na blockchain:', numerosCartela.map(n => Number(n)))
+      
+      const cartelaAtualizada = await publicClient.readContract({
+        address: CONTRACTS.CARTELA,
+        abi: CARTELA_ABI,
+        functionName: 'cartelas',
+        args: [cartelaId],
+      }) as [bigint, number, number, string, boolean, boolean, bigint]
+      
+      if (cartelaAtualizada[4] && numerosCartela.length === totalNumeros) {
+        toast({
+          title: "Números registrados com sucesso!",
+          description: `Cartela ${linhas}x${colunas} preenchida com ${numerosCartela.length} números.`,
+        })
+      } else {
+        throw new Error('Números não foram salvos corretamente')
+      }
+      
+      // Recarregar cartelas
       setTimeout(() => {
-        console.log('🔄 Recarregando cartelas após registro de números...')
+        console.log('🔄 Recarregando cartelas após registro...')
         if (refetchUserCards) {
           refetchUserCards()
         }
-      }, 2000)
+      }, 3000)
       
-    } catch (error) {
-      console.error('❌ Erro ao registrar números:', error)
+    } catch (error: any) {
+      console.error('❌ ERRO COMPLETO ao registrar números:', error)
+      console.error('❌ Stack trace:', error.stack)
+      console.error('❌ Message:', error.message)
+      
+      let errorMessage = "Erro desconhecido"
+      if (error.message?.includes("não é o dono")) {
+        errorMessage = "Você não é o dono desta cartela"
+      } else if (error.message?.includes("já tem números")) {
+        errorMessage = "Esta cartela já tem números registrados"
+      } else if (error.message?.includes("em uso")) {
+        errorMessage = "Esta cartela está sendo usada em uma rodada"
+      } else if (error.message?.includes("user rejected")) {
+        errorMessage = "Transação cancelada pelo usuário"
+      } else if (error.message?.includes("insufficient funds")) {
+        errorMessage = "ETH insuficiente para pagar o gas"
+      } else if (error.message?.includes("Carteira não conectada")) {
+        errorMessage = "Conecte sua carteira primeiro"
+      } else if (error.message?.includes("Rede incorreta")) {
+        errorMessage = "Conecte-se à rede local (localhost:8545)"
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       toast({
         title: "Erro ao registrar números",
-        description: "Você pode tentar novamente ou registrar manualmente.",
+        description: errorMessage,
         variant: "destructive",
       })
+    } finally {
+      setIsRegisteringNumbers(false)
     }
   }
 
@@ -134,8 +276,10 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
   }, [showCreateModal, txHash])
 
   // Função para criar cartela
+  // ATUALIZADO: Função para criar cartela - CORRIGIR VALOR DO PAGAMENTO
+   // Função para criar cartela - SEM REGISTRO AUTOMÁTICO
   const handleCreateCard = async (rows: number, columns: number) => {
-    console.log('🚀 CLIQUE DETECTADO! Iniciando criação:', { rows, columns })
+    console.log('🚀 CRIANDO CARTELA:', { rows, columns, totalNumbers: rows * columns })
     console.log('🔧 Estado atual:', { isConnected, isCorrectNetwork, chainId })
     
     if (!isConnected) {
@@ -158,62 +302,60 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
       return
     }
 
-    console.log('✅ Validações OK, chamando criarCartela com pagamento...')
+    console.log('✅ Validações OK, criando cartela...')
+    console.log('💰 Preço base atual:', precoBase ? `${Number(precoBase) / 1e18} ETH` : 'Carregando...')
     
     try {
-      console.log('📝 Enviando transação com 0.01 ETH...')
+      console.log('📝 Enviando transação de criação...')
       
-      // Usar o hook criarCartela que ja tem o writeContract configurado
       const result = await criarCartela(rows, columns)
       
-      console.log('✅ Transação enviada:', result)
+      console.log('✅ Transação de criação enviada:', result)
       
       toast({
         title: "Criando cartela...",
-        description: "Pagamento de 0.01 ETH enviado. Aguarde a confirmação.",
+        description: `Cartela ${rows}×${columns} sendo criada. Aguarde a confirmação para registrar números.`,
       })
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro ao criar cartela:', error)
+      console.error('❌ Stack trace:', error.stack)
+      
+      let errorMessage = "Erro desconhecido"
+      if (error.message?.includes("insufficient funds")) {
+        errorMessage = "ETH insuficiente para a transação"
+      } else if (error.message?.includes("user rejected")) {
+        errorMessage = "Transação cancelada pelo usuário"
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+      
       toast({
-        title: "Erro",
-        description: "Erro ao criar cartela. Verifique se você tem ETH suficiente (0.01 ETH + gas).",
+        title: "Erro ao criar cartela",
+        description: errorMessage,
         variant: "destructive",
       })
     }
   }
 
+  // ← FUNÇÃO ATUALIZADA
   const handleJoinRound = async (cardId: string) => {
-    if (!isConnected || !rodada) {
-      toast({
-        title: "Erro",
-        description: "Conecte sua carteira e aguarde uma rodada ativa.",
-        variant: "destructive",
-      })
-      return
-    }
-
-    if (!isCorrectNetwork) {
-      toast({
-        title: "Rede incorreta",
-        description: "Conecte-se à rede local para participar.",
-        variant: "destructive",
-      })
-      return
-    }
+    if (!isConnected || !rodada) return
 
     try {
-      await participar(currentRoundId, BigInt(cardId))
+      const taxaEntrada = rodada.taxaEntrada || parseEther("0.01")
+      await participar(currentRoundId, BigInt(cardId), taxaEntrada)
+      
       setSelectedCard(cardId)
       toast({
         title: "Participação confirmada!",
-        description: "Você está participando da rodada.",
+        description: `Taxa de ${formatEther(taxaEntrada)} ETH paga.`,
       })
     } catch (error) {
       console.error("Erro ao participar:", error)
       toast({
         title: "Erro",
-        description: "Erro ao participar da rodada.",
+        description: "Erro ao participar. Verifique se tem ETH suficiente.",
         variant: "destructive",
       })
     }
@@ -247,29 +389,28 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }
 
+  // ← FUNÇÃO ATUALIZADA
   const handleStartRound = async () => {
-    if (!isConnected) return
-
-    if (!isCorrectNetwork) {
-      toast({
-        title: "Rede incorreta",
-        description: "Conecte-se à rede local para iniciar rodadas.",
-        variant: "destructive",
-      })
-      return
-    }
+    if (!isConnected || !isCorrectNetwork) return
 
     try {
-      await iniciarRodada(75) // Números de 1 a 75
+      // Configurações da rodada
+      const numeroMaximo = 75
+      const taxaEntrada = parseEther("0.01")        // 0.01 ETH
+      const timeoutRodada = BigInt(3600)            // 1 hora
+      const padroesVitoria = [true, true, true, false] // [linha, coluna, diagonal, cartela_completa]
+
+      await iniciarRodada(numeroMaximo, taxaEntrada, timeoutRodada, padroesVitoria)
+      
       toast({
         title: "Rodada iniciada!",
-        description: "Uma nova rodada foi iniciada na blockchain.",
+        description: "Nova rodada criada com taxa de 0.01 ETH.",
       })
     } catch (error) {
       console.error("Erro ao iniciar rodada:", error)
       toast({
         title: "Erro",
-        description: "Erro ao iniciar rodada.",
+        description: "Erro ao iniciar rodada. Verifique se você é operador.",
         variant: "destructive",
       })
     }
@@ -302,7 +443,6 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
               <h2 className="text-xl font-bold text-white mb-2">Carteira Necessária</h2>
               <p className="text-slate-400">Conecte sua carteira para jogar Bingo Web3</p>
             </div>
-            <WalletConnect />
           </div>
         </main>
       </div>
@@ -365,27 +505,25 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-white">Rodada #{rodada.id.toString()}</CardTitle>
-                    <Badge
-                      className={
-                        rodada.estado === 1
-                          ? "bg-green-500/20 text-green-400 border-green-500/30"
-                          : rodada.estado === 0
-                            ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-                            : "bg-red-500/20 text-red-400 border-red-500/30"
-                      }
-                    >
-                      {rodada.estado === 1 ? "Ativa" : rodada.estado === 0 ? "Aguardando" : "Finalizada"}
+                    {/* ← BADGE ATUALIZADO */}
+                    <Badge className={getEstadoCor(rodada.estado)}>
+                      {getEstadoTexto(rodada.estado)}
                     </Badge>
                   </div>
+                  {/* ← DESCRIÇÃO ATUALIZADA */}
                   <CardDescription className="text-slate-400">
                     Números de 1 a {rodada.numeroMaximo} • VRF Pendente: {rodada.pedidoVrfPendente ? "Sim" : "Não"}
+                    {rodada.taxaEntrada && rodada.taxaEntrada > 0 && (
+                      <> • Taxa: {formatEther(rodada.taxaEntrada)} ETH</>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex gap-4">
+                    {/* ← BOTÃO ATUALIZADO */}
                     <Button
                       onClick={handleDrawNumber}
-                      disabled={rodada.estado !== 1 || isBingoLoading || !isCorrectNetwork}
+                      disabled={!canDraw || isBingoLoading || !isCorrectNetwork}
                       className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
                     >
                       <Zap className="h-4 w-4 mr-2" />
@@ -399,6 +537,15 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                       </Badge>
                     )}
                   </div>
+
+                  {/* Informações adicionais da rodada */}
+                  {rodada.premioTotal && rodada.premioTotal > 0 && (
+                    <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                      <p className="text-yellow-400 text-sm">
+                        💰 Prêmio Total: {formatEther(rodada.premioTotal)} ETH
+                      </p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -424,7 +571,7 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                     Suas Cartelas {totalCards > 0 && `(${totalCards})`}
                   </CardTitle>
                   <div className="flex gap-2">
-                    {/* NOVO: Botão de atualizar cartelas */}
+                    {/* Botão de atualizar cartelas */}
                     <Button
                       onClick={() => refetchUserCards && refetchUserCards()}
                       size="sm"
@@ -442,7 +589,9 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                       className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      {isCreatingCard ? "Criando..." : "Nova Cartela"}
+                      {isCreatingCard ? "Criando..." : 
+                        precoBase ? `Nova Cartela (${(Number(precoBase) / 1e18).toFixed(3)} ETH)` : "Nova Cartela"
+                      }
                     </Button>
                   </div>
                 </div>
@@ -450,7 +599,7 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                   Gerencie suas cartelas de bingo on-chain
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+            <CardContent>
                 {isLoadingCards ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-4"></div>
@@ -458,16 +607,30 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                   </div>
                 ) : userCards.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {userCards.map((card) => (
-                      <BingoCard
-                        key={card.id}
-                        card={card}
-                        drawnNumbers={[]}
-                        onJoinRound={handleJoinRound}
-                        isParticipating={selectedCard === card.id}
-                        canJoin={!!rodada && rodada.estado === 1}
-                      />
-                    ))}
+                    {userCards.map((card) => {
+                      console.log(`🎮 RENDERIZANDO CARTELA ${card.id}:`, {
+                        hasNumbers: card.card_data?.numbers?.some((n: number) => n > 0),
+                        numerosRegistrados: card.cartela?.[4],
+                        passandoOnRegisterNumbers: true,
+                        isRegisteringNumbers
+                      })
+                      
+                      return (
+                        <BingoCard
+                          key={card.id}
+                          card={card}
+                          drawnNumbers={[]}
+                          onJoinRound={handleJoinRound}
+                          onRegisterNumbers={(cardId) => {
+                            console.log(`🚀 onRegisterNumbers chamado para cartela ${cardId}`)
+                            registerNumbers(BigInt(cardId))
+                          }}
+                          isParticipating={selectedCard === card.id}
+                          canJoin={canJoin}
+                          isRegisteringNumbers={isRegisteringNumbers}
+                        />
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8">
@@ -483,7 +646,9 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                       className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
                     >
                       <Plus className="h-4 w-4 mr-2" />
-                      {isCreatingCard ? "Criando..." : "Criar Primeira Cartela"}
+                      {isCreatingCard ? "Criando..." : 
+                        precoBase ? `Criar Primeira Cartela (${(Number(precoBase) / 1e18).toFixed(3)} ETH)` : "Criar Primeira Cartela"
+                      }
                     </Button>
                   </div>
                 )}
@@ -491,9 +656,12 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
             </Card>
           </div>
 
-          {/* Sidebar */}
+{/* Sidebar */}
           <div className="space-y-6">
+            {/* Wallet Connect Card */}
             <WalletConnect />
+            
+            {/* Game Stats */}
             <GameStats userCards={userCards} activeRound={null} />
 
             {/* Informações do Contrato */}
@@ -514,8 +682,14 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                 </div>
                 <div>
                   <p className="text-slate-400">Rede:</p>
-                  <p className="text-slate-300">Local Network (Chain ID: 31337)</p>
+                  <p className="text-slate-300">Local Network (Chain ID: 1)</p>
                 </div>
+                {precoBase && (
+                  <div>
+                    <p className="text-slate-400">Preço da Cartela:</p>
+                    <p className="text-slate-300">{(Number(precoBase) / 1e18).toFixed(4)} ETH</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -526,10 +700,11 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
               </CardHeader>
               <CardContent className="space-y-2 text-sm text-slate-400">
                 <p>1. Conecte sua carteira à rede local</p>
-                <p>2. Crie uma cartela on-chain (0.01 ETH)</p>
-                <p>3. Participe de uma rodada</p>
-                <p>4. Aguarde sorteios via Chainlink VRF</p>
-                <p>5. Complete padrões para ganhar!</p>
+                <p>2. Crie uma cartela on-chain</p>
+                <p>3. <strong>Clique "Registrar Números"</strong> na cartela</p>
+                <p>4. Participe de uma rodada ativa</p>
+                <p>5. Aguarde sorteios via Chainlink VRF</p>
+                <p>6. Complete padrões para ganhar!</p>
               </CardContent>
             </Card>
           </div>

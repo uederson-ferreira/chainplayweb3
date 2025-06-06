@@ -1,582 +1,1257 @@
+// ABIs gerados automaticamente do Foundry - não editar manualmente
+// Gerado em: 2025-06-06T00:04:51.773Z
+// Fonte: contracts/out/
+
 export const CARTELA_ABI = [
   {
-    inputs: [],
-    stateMutability: "nonpayable",
-    type: "constructor",
+    "type": "constructor",
+    "inputs": [
+      {
+        "name": "_precoBaseCartela",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_feeCollector",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "admin",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "CartelaInexistente",
-    type: "error",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "atualizarFeeCollector",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
-      },
+        "name": "_novoFeeCollector",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "NaoEhDono",
-    type: "error",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "atualizarPrecoBase",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
-      },
+        "name": "_novoPreco",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "NumerosJaRegistrados",
-    type: "error",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "bingoGameContract",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "QuantidadeNumerosInvalida",
-    type: "error",
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "cartelaEmUso",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "cartelaId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "dono",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint8",
-        name: "linhas",
-        type: "uint8",
-      },
-      {
-        indexed: false,
-        internalType: "uint8",
-        name: "colunas",
-        type: "uint8",
-      },
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "CartelaCriada",
-    type: "event",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "cartelas",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "cartelaId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "dono",
-        type: "address",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "NumerosRegistrados",
-    type: "event",
+    "outputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "linhas",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "colunas",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "dono",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "numerosRegistrados",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "emUso",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "preco",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "criarCartela",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "cartelaId",
-        type: "uint256",
+        "name": "_linhas",
+        "type": "uint8",
+        "internalType": "uint8"
       },
       {
-        indexed: true,
-        internalType: "address",
-        name: "donoAntigo",
-        type: "address",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "donoNovo",
-        type: "address",
-      },
+        "name": "_colunas",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
     ],
-    name: "PropriedadeTransferida",
-    type: "event",
+    "outputs": [
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "payable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "feeCollector",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "cartelas",
-    outputs: [
-      {
-        internalType: "uint256",
-        name: "id",
-        type: "uint256",
-      },
-      {
-        internalType: "uint8",
-        name: "linhas",
-        type: "uint8",
-      },
-      {
-        internalType: "uint8",
-        name: "colunas",
-        type: "uint8",
-      },
-      {
-        internalType: "address",
-        name: "dono",
-        type: "address",
-      },
-      {
-        internalType: "bool",
-        name: "numerosRegistrados",
-        type: "bool",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getNumerosCartela",
+    "inputs": [
       {
-        internalType: "uint8",
-        name: "_linhas",
-        type: "uint8",
-      },
-      {
-        internalType: "uint8",
-        name: "_colunas",
-        type: "uint8",
-      },
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "criarCartela",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "marcarEmUso",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
-    ],
-    name: "getNumerosCartela",
-    outputs: [
       {
-        internalType: "uint256[]",
-        name: "",
-        type: "uint256[]",
-      },
+        "name": "_emUso",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [],
-    name: "proximoCartelaId",
-    outputs: [
+    "type": "function",
+    "name": "numeroExisteNaCartela",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "_numero",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "operadores",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256[]",
-        name: "_numeros",
-        type: "uint256[]",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "registrarNumerosCartela",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "precoBaseCartela",
+    "inputs": [],
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
-      },
-      {
-        internalType: "address",
-        name: "_novoDono",
-        type: "address",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "vincularDono",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "stateMutability": "view"
   },
+  {
+    "type": "function",
+    "name": "registrarNumerosCartela",
+    "inputs": [
+      {
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_numeros",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setBingoGameContract",
+    "inputs": [
+      {
+        "name": "_bingoGameContract",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "setOperador",
+    "inputs": [
+      {
+        "name": "operador",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "status",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "vincularDono",
+    "inputs": [
+      {
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_novoDono",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "event",
+    "name": "BingoGameContractAtualizado",
+    "inputs": [
+      {
+        "name": "bingoGameContractAnterior",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "novoBingoGameContract",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CartelaCriada",
+    "inputs": [
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "donoInicial",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "linhas",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "colunas",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "preco",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "CartelaMarcadaEmUso",
+    "inputs": [
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "emUso",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DebugAdmin",
+    "inputs": [
+      {
+        "name": "sender",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "feeCollector",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "DonoCartelaTransferido",
+    "inputs": [
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "donoAnterior",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "novoDono",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeeCollectorAtualizado",
+    "inputs": [
+      {
+        "name": "feeCollectorAnterior",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "novoFeeCollector",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NumerosCartelaRegistrados",
+    "inputs": [
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "numeros",
+        "type": "uint256[]",
+        "indexed": false,
+        "internalType": "uint256[]"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PrecoBaseAtualizado",
+    "inputs": [
+      {
+        "name": "precoAnterior",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "novoPreco",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  }
 ] as const
 
 export const BINGO_ABI = [
   {
-    inputs: [
+    "type": "constructor",
+    "inputs": [
       {
-        internalType: "address",
-        name: "_cartelaContractAddress",
-        type: "address",
+        "name": "_cartelaContractAddress",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "address",
-        name: "_vrfCoordinator",
-        type: "address",
+        "name": "_vrfCoordinator",
+        "type": "address",
+        "internalType": "address"
       },
       {
-        internalType: "uint64",
-        name: "_subscriptionId",
-        type: "uint64",
+        "name": "_subscriptionId",
+        "type": "uint64",
+        "internalType": "uint64"
       },
       {
-        internalType: "bytes32",
-        name: "_keyHash",
-        type: "bytes32",
+        "name": "_keyHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
       },
+      {
+        "name": "_admin",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_feeCollector",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "constructor",
+    "stateMutability": "nonpayable"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "TAXA_ADMIN",
+    "inputs": [],
+    "outputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "cartelaId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "jogador",
-        type: "address",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "JogadorEntrou",
-    type: "event",
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "TAXA_PLATAFORMA",
+    "inputs": [],
+    "outputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "requestId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "numeroSorteado",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "NumeroSorteado",
-    type: "event",
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "TIMEOUT_PADRAO",
+    "inputs": [],
+    "outputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "uint256",
-        name: "requestId",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "PedidoVrfEnviado",
-    type: "event",
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "admin",
+    "inputs": [],
+    "outputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "totalPrize",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "winnerCount",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "PremioDistribuido",
-    type: "event",
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "cancelarRodada",
+    "inputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "_motivo",
+        "type": "string",
+        "internalType": "string"
+      }
     ],
-    name: "RodadaFinalizada",
-    type: "event",
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "cartelaContract",
+    "inputs": [],
+    "outputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
-      },
-      {
-        indexed: false,
-        internalType: "uint8",
-        name: "numeroMaximo",
-        type: "uint8",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "contract CartelaContract"
+      }
     ],
-    name: "RodadaIniciada",
-    type: "event",
+    "stateMutability": "view"
   },
   {
-    anonymous: false,
-    inputs: [
+    "type": "function",
+    "name": "feeCollector",
+    "inputs": [],
+    "outputs": [
       {
-        indexed: true,
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
-      },
-      {
-        indexed: true,
-        internalType: "address",
-        name: "vencedor",
-        type: "address",
-      },
-      {
-        indexed: false,
-        internalType: "uint256",
-        name: "cartelaId",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "VencedorEncontrado",
-    type: "event",
+    "stateMutability": "view"
   },
   {
-    inputs: [],
-    name: "cartelaContract",
-    outputs: [
+    "type": "function",
+    "name": "getCartelasParticipantes",
+    "inputs": [
       {
-        internalType: "contract CartelaContract",
-        name: "",
-        type: "address",
-      },
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getNumerosSorteados",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_rodadaId",
-        type: "uint256",
-      },
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "distribuirPremios",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getPremioVencedor",
+    "inputs": [
       {
-        internalType: "uint8",
-        name: "_numeroMaximo",
-        type: "uint8",
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
       },
-    ],
-    name: "iniciarRodada",
-    outputs: [
       {
-        internalType: "uint256",
-        name: "rodadaId",
-        type: "uint256",
-      },
+        "name": "_vencedor",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getUltimoRequestId",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_rodadaId",
-        type: "uint256",
-      },
-      {
-        internalType: "uint256",
-        name: "_cartelaId",
-        type: "uint256",
-      },
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "participar",
-    outputs: [],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "getVencedores",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
     ],
-    name: "rodadas",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "id",
-        type: "uint256",
-      },
-      {
-        internalType: "enum BingoGameContract.EstadoRodada",
-        name: "estado",
-        type: "uint8",
-      },
-      {
-        internalType: "uint8",
-        name: "numeroMaximo",
-        type: "uint8",
-      },
-      {
-        internalType: "uint256",
-        name: "ultimoRequestId",
-        type: "uint256",
-      },
-      {
-        internalType: "bool",
-        name: "pedidoVrfPendente",
-        type: "bool",
-      },
-      {
-        internalType: "bool",
-        name: "premiosDistribuidos",
-        type: "bool",
-      },
+        "name": "",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "iniciarRodada",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "_rodadaId",
-        type: "uint256",
+        "name": "_numeroMaximo",
+        "type": "uint8",
+        "internalType": "uint8"
       },
-    ],
-    name: "sortearNumero",
-    outputs: [
       {
-        internalType: "uint256",
-        name: "requestId",
-        type: "uint256",
+        "name": "_taxaEntrada",
+        "type": "uint256",
+        "internalType": "uint256"
       },
+      {
+        "name": "_timeoutRodada",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_padroesVitoria",
+        "type": "bool[]",
+        "internalType": "bool[]"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function",
+    "outputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
+    "type": "function",
+    "name": "operadores",
+    "inputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
     ],
-    name: "vrfRequestIdToRodadaId",
-    outputs: [
+    "outputs": [
       {
-        internalType: "uint256",
-        name: "",
-        type: "uint256",
-      },
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    stateMutability: "view",
-    type: "function",
+    "stateMutability": "view"
   },
+  {
+    "type": "function",
+    "name": "participar",
+    "inputs": [
+      {
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "rawFulfillRandomWords",
+    "inputs": [
+      {
+        "name": "requestId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "randomWords",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "rodadas",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "estado",
+        "type": "uint8",
+        "internalType": "enum BingoGameContract.EstadoRodada"
+      },
+      {
+        "name": "numeroMaximo",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "ultimoRequestId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "pedidoVrfPendente",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "premiosDistribuidos",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "taxaEntrada",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "premioTotal",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "timestampInicio",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "timeoutRodada",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setOperador",
+    "inputs": [
+      {
+        "name": "_operador",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_status",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "sortearNumero",
+    "inputs": [
+      {
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "requestId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "verificarTimeoutRodada",
+    "inputs": [
+      {
+        "name": "_rodadaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "vrfRequestIdToRodadaId",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "event",
+    "name": "AdminAtualizado",
+    "inputs": [
+      {
+        "name": "adminAnterior",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "novoAdmin",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeeCollectorAtualizado",
+    "inputs": [
+      {
+        "name": "feeCollectorAnterior",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "novoFeeCollector",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "JogadorEntrou",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "jogador",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "taxaPaga",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "NumeroSorteado",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "requestId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "numeroSorteado",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "OperadorAtualizado",
+    "inputs": [
+      {
+        "name": "operador",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "status",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PedidoVrfEnviado",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "requestId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "PremioDistribuido",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vencedor",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "premio",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RodadaCancelada",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "motivo",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RodadaFinalizada",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "premioTotal",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "numVencedores",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RodadaIniciada",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "numeroMaximo",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "uint8"
+      },
+      {
+        "name": "taxaEntrada",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "timeoutRodada",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "VencedorEncontrado",
+    "inputs": [
+      {
+        "name": "rodadaId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "vencedor",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "padrao",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum BingoGameContract.PadraoVitoria"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "error",
+    "name": "OnlyCoordinatorCanFulfill",
+    "inputs": [
+      {
+        "name": "have",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "want",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  }
 ] as const

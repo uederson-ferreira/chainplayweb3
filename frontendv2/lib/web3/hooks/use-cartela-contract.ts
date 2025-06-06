@@ -1,12 +1,140 @@
+// Arquivo: lib/web3/hooks/use-cartela-contract.ts
+
 "use client"
 
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
 import { useAccount, useBlockNumber } from "wagmi"
-import { useEffect, useState, useCallback } from "react" // Adicione useCallback
-import { CARTELA_ABI } from "../contracts/abis"
+import { useEffect, useState, useCallback } from "react"
 import { CONTRACTS } from "../config"
-import { createPublicClient, http } from 'viem'
+import { createPublicClient, http, parseEther } from 'viem'
 import { localChain } from "../config"
+
+// Nova ABI atualizada para CARTELA
+export const CARTELA_ABI = [
+  {
+    "type": "function",
+    "name": "criarCartela",
+    "inputs": [
+      {
+        "name": "_linhas",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "_colunas",
+        "type": "uint8",
+        "internalType": "uint8"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "payable"
+  },
+  {
+    "type": "function",
+    "name": "registrarNumerosCartela",
+    "inputs": [
+      {
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "_numeros",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "cartelas",
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "linhas",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "colunas",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "dono",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "numerosRegistrados",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "emUso",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "preco",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getNumerosCartela",
+    "inputs": [
+      {
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256[]",
+        "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "precoBaseCartela",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  }
+] as const
 
 // Cliente público para ler eventos
 const publicClient = createPublicClient({
@@ -21,26 +149,84 @@ export function useCartelaContract() {
     hash,
   })
 
-  // Criar cartela
+  // Buscar preço base antes de criar cartela
+  const { data: precoBase } = useReadContract({
+    address: CONTRACTS.CARTELA,
+    abi: CARTELA_ABI,
+    functionName: "precoBaseCartela",
+  })
+
+  // Criar cartela com pagamento - VERSÃO OTIMIZADA
   const criarCartela = async (linhas: number, colunas: number) => {
+    const valorPagamento = precoBase || parseEther("0.01")
+    console.log('💰 Criando cartela com:', {
+      valor: (Number(valorPagamento) / 1e18).toFixed(4) + ' ETH',
+      valorEmWei: valorPagamento.toString(),
+      linhas,
+      colunas
+    })
+    
     return writeContract({
       address: CONTRACTS.CARTELA,
       abi: CARTELA_ABI,
       functionName: "criarCartela",
       args: [linhas, colunas],
-      // Removido o value pois a função não é payable
+      value: valorPagamento,
+      // GAS OTIMIZADO PARA CRIAÇÃO:
+      gas: BigInt(150000), // ← Gas limitado
+      gasPrice: BigInt(1000000000), // ← 1 gwei fixo
     })
   }
 
   // Registrar números da cartela
   const registrarNumeros = async (cartelaId: bigint, numeros: bigint[]) => {
-    return writeContract({
-      address: CONTRACTS.CARTELA,
-      abi: CARTELA_ABI,
-      functionName: "registrarNumerosCartela",
-      args: [cartelaId, numeros],
-    })
-  }
+      console.log('📝 Iniciando registrarNumeros com gas otimizado...')
+      console.log('📊 Parâmetros:', {
+        cartelaId: cartelaId.toString(),
+        numerosCount: numeros.length,
+        primeiros5: numeros.slice(0, 5).map(n => n.toString())
+      })
+      
+      // Validações antes de enviar
+      if (numeros.length !== 25) {
+        throw new Error(`Número incorreto de elementos: ${numeros.length}. Esperado: 25`)
+      }
+      
+      // Verificar duplicatas
+      const numerosUnicos = new Set(numeros.map(n => n.toString()))
+      if (numerosUnicos.size !== numeros.length) {
+        throw new Error('Números duplicados encontrados')
+      }
+      
+      // Verificar range (1-99)
+      for (const numero of numeros) {
+        const n = Number(numero)
+        if (n < 1 || n > 99) {
+          throw new Error(`Número fora do range: ${n}. Deve estar entre 1-99`)
+        }
+      }
+      
+      console.log('✅ Validações passaram, enviando transação com gas otimizado...')
+      
+      try {
+        const result = await writeContract({
+          address: CONTRACTS.CARTELA,
+          abi: CARTELA_ABI,
+          functionName: "registrarNumerosCartela",
+          args: [cartelaId, numeros],
+          // GAS OTIMIZADO PARA REDE LOCAL:
+          gas: BigInt(200000), // ← REDUZIDO de 800000 para 200000
+          gasPrice: BigInt(1000000000), // ← 1 gwei fixo (muito baixo)
+        })
+        
+        console.log('📤 Transação enviada com gas otimizado:', result)
+        return result
+        
+      } catch (writeError: any) {
+        console.error('❌ Erro na writeContract:', writeError)
+        throw writeError
+      }
+    }
 
   return {
     criarCartela,
@@ -50,6 +236,7 @@ export function useCartelaContract() {
     isConfirming,
     isConfirmed,
     error,
+    precoBase,
   }
 }
 
@@ -75,22 +262,44 @@ export function useCartelaData(cartelaId?: bigint) {
     },
   })
 
+  // ← ATUALIZAR ESTA PARTE:
+  const cartelaData = cartela ? {
+    id: cartela[0],                    // uint256
+    linhas: cartela[1],               // uint8
+    colunas: cartela[2],              // uint8
+    dono: cartela[3],                 // address
+    numerosRegistrados: cartela[4],    // bool
+    emUso: cartela[5],                // bool ← NOVO
+    preco: cartela[6],                // uint256 ← NOVO
+  } : null
+
   return {
-    cartela,
+    cartela: cartelaData,
     numeros,
   }
 }
 
-// Hook para próximo ID de cartela
-export function useProximoCartelaId() {
-  const { data: proximoId } = useReadContract({
+// 4. ADICIONAR este novo hook no final do arquivo:
+export function usePrecoBaseCartela() {
+  const { data: precoBase } = useReadContract({
     address: CONTRACTS.CARTELA,
     abi: CARTELA_ABI,
-    functionName: "proximoCartelaId",
+    functionName: "precoBaseCartela",
   })
 
-  return proximoId
+  return precoBase
 }
+
+// Hook para próximo ID de cartela - usar precoBase como proxy
+export function useProximoCartelaId() {
+  // Como não há mais a função proximoCartelaId, vamos simular
+  // Você pode ajustar isso baseado na lógica do seu contrato
+  return BigInt(1) // Placeholder
+}
+
+// ========================================
+//use-cartela-contract.ts
+// ========================================
 
 // Hook para buscar cartelas do usuário usando eventos
 export function useUserCartelas() {
@@ -109,11 +318,19 @@ export function useUserCartelas() {
       console.log('📍 Contrato:', CONTRACTS.CARTELA)
 
       // Buscar TODOS os eventos do contrato primeiro
+      const currentBlock = await publicClient.getBlockNumber()
+      const fromBlock = currentBlock > BigInt(500) ? currentBlock - BigInt(500) : BigInt(0)
+
       const allLogs = await publicClient.getLogs({
         address: CONTRACTS.CARTELA,
-        fromBlock: BigInt(0),
+        fromBlock: fromBlock,
         toBlock: 'latest',
       })
+      // const allLogs = await publicClient.getLogs({
+      //   address: CONTRACTS.CARTELA,
+      //   fromBlock: BigInt(0),
+      //   toBlock: 'latest',
+      // })
 
       console.log('📋 TODOS os eventos do contrato:', allLogs.length)
       console.log('🔍 Eventos completos:', allLogs)
@@ -161,8 +378,8 @@ export function useUserCartelas() {
           address: CONTRACTS.CARTELA,
           abi: CARTELA_ABI,
           functionName: 'cartelas',
-          args: [BigInt(1)],
-        }) as [bigint, number, number, string, boolean]
+          args: [BigInt(1)], // ← CORRIGIDO: era 'id', agora é BigInt(1)
+        }) as [bigint, number, number, string, boolean, boolean, bigint] // ← CORRIGIDO: tipo atualizado
         
         console.log('📋 Cartela 1 dados:', cartela)
         
@@ -221,7 +438,7 @@ export function useUserCartelasCompletas() {
             abi: CARTELA_ABI,
             functionName: 'cartelas',
             args: [id],
-          }) as [bigint, number, number, string, boolean]
+          }) as [bigint, number, number, string, boolean, boolean, bigint] // ← CORRIGIDO: tipo atualizado
 
           console.log(`📋 Dados da cartela ${id}:`, cartela)
 
@@ -249,6 +466,8 @@ export function useUserCartelasCompletas() {
             rows: Number(cartela[1]), // linhas
             columns: Number(cartela[2]), // colunas
             hasNumbers: cartela[4], // numerosRegistrados
+            emUso: cartela[5], // emUso ← NOVO
+            preco: cartela[6], // preco ← NOVO
           }
         } catch (error) {
           console.error(`Erro ao buscar dados da cartela ${id}:`, error)

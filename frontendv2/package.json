@@ -6,7 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+
+    "extract-abis": "node scripts/extract-abis.js",
+    "setup-vrf": "node scripts/setup-vrf.js",
+    "deploy-contracts": "cd ../contracts && forge script script/DeployBingo.s.sol --fork-url http://127.0.0.1:8545 --broadcast && cd ../frontendv2 && npm run extract-abis",
+    "anvil": "cd ../contracts && anvil --fork-url https://rpc.ankr.com/eth --fork-block-number 18000000 --host 0.0.0.0 --port 8545",
+    "anvil-cloudflare": "cd ../contracts && anvil --fork-url https://cloudflare-eth.com --host 0.0.0.0 --port 8545",
+    "anvil-alchemy": "cd ../contracts && anvil --fork-url https://eth-mainnet.g.alchemy.com/v2/Pyqil-AjK_ZKYArIFdRZpI1D6SgePDy4 --host 0.0.0.0 --port 8545",
+    "anvil-ankr": "cd ../contracts && anvil --fork-url https://rpc.ankr.com/eth/c804af6fc381b6899926dbeb1d8685a99d3db904d0c00bccc3d2b7404abd5010 --fork-block-number 18000000 --host 0.0.0.0 --port 8545"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

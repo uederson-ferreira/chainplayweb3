@@ -29,5 +29,10 @@ remappings = [
 
 # Allow reading files from the optimism folder
 fs_permissions = [
-    { access = "read", path = "./lib/optimism" }
+    { access = "read", path = "./lib/optimism" },
+    { access = "read-write", path = "./deployment.json" },
+    { access = "read-write", path = "../frontendv2/scripts/" },
+    { access = "read-write", path = "../frontendv2/scripts/deployment.json" },
+    { access = "read", path = "./out/" },
+    { access = "read", path = "./" }
 ]

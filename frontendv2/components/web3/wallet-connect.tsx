@@ -41,11 +41,11 @@ export default function WalletConnect() {
   const getNetworkName = (chainId?: number) => {
     switch (chainId) {
       case 31337:
-        return "Local Network"
+        return "Local Network (Anvil)"
+      case 1:
+        return "Local Anvil Fork" // ← MUDANÇA: reconhecer como rede local
       case 11155111:
         return "Sepolia"
-      case 1:
-        return "Ethereum"
       case 137:
         return "Polygon"
       case 42161:

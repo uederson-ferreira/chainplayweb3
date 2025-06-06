@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
 import DashboardHeader from "@/components/dashboard/dashboard-header"
 import GameCard from "@/components/dashboard/game-card"
-import WalletConnect from "@/components/web3/wallet-connect"
+//import WalletConnect from "@/components/web3/wallet-connect"
 import { isSupabaseConfigured } from "@/lib/supabase/client"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { AlertCircle, Wallet } from "lucide-react"
@@ -239,18 +239,18 @@ export default function DashboardPage() {
           />
         </div>
 
-        {!accountData.isConnected && (
-          <div className="mt-8">
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-              <CardHeader>
-                <CardTitle className="text-white">Conectar Carteira</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <WalletConnect />
-              </CardContent>
-            </Card>
-          </div>
-        )}
+     {!accountData.isConnected && (
+        <div className="mt-8">
+          <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <CardHeader>
+              <CardTitle className="text-white">Conectar Carteira</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* <WalletConnect /> */}
+            </CardContent>
+          </Card>
+        </div>
+      )}
       </main>
     </div>
   )

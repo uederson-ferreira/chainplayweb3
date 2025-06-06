@@ -19,7 +19,7 @@ contract DeployBingoGame is Script {
 
         vm.startBroadcast();
 
-        BingoGameContract bingo = new BingoGameContract(
+        new BingoGameContract(
             cartelaContractAddress,
             vrfCoordinator,
             subscriptionId,

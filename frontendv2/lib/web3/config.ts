@@ -5,8 +5,8 @@ import type { Chain } from "wagmi/chains"
 
 // Configuração da rede local COMPLETA
 export const localChain: Chain = {
-  id: 31337,
-  name: "Local Network",
+  id: 1,
+  name: "Local Anvil Fork",
   nativeCurrency: {
     name: "Ether",
     symbol: "ETH",
@@ -33,6 +33,10 @@ export const config = createConfig({
     injected(),
     walletConnect({
       projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || "fallback-project-id",
+      showQrModal: false, // ← ADICIONE ISSO
+      qrModalOptions: {
+        themeMode: 'dark'
+      }
     }),
   ],
   transports: {
