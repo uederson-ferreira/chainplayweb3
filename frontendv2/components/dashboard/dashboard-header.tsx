@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { LogOut, Settings } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { isSupabaseConfigured, getSupabaseInstance, resetSupabaseInstance } from "@/lib/supabase/client"
-
+import Link from 'next/link'
 interface DashboardHeaderProps {
   user: any
   profile: any
@@ -54,8 +54,12 @@ export default function DashboardHeader({ user, profile }: DashboardHeaderProps)
           <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
             BETA
           </span>
+          <Link href="/debug/vrf">
+          <Button variant="ghost" size="sm">
+            🔧 VRF Debug
+          </Button>
+        </Link>
         </div>
-
         <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">
             <Avatar className="h-8 w-8">

@@ -3,6 +3,9 @@
 
 import { createPublicClient, http } from 'viem'
 
+// Carregar variáveis de ambiente
+require('dotenv').config({ path: '../.env.local' })
+
 const publicClient = createPublicClient({
   chain: {
     id: 31337,
@@ -13,8 +16,20 @@ const publicClient = createPublicClient({
   transport: http("http://127.0.0.1:8545"),
 })
 
-const CARTELA_ADDRESS = "0x64f5219563e28EeBAAd91Ca8D31fa3b36621FD4f" // Do erro
-const BINGO_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+
+const BINGO_ADDRESS = process.env.NEXT_PUBLIC_BINGO_CONTRACT_ADDRESS
+const CARTELA_ADDRESS = process.env.NEXT_PUBLIC_CARTELA_CONTRACT_ADDRESS
+
+// Verificar se as variáveis existem
+if (!BINGO_ADDRESS || !CARTELA_ADDRESS) {
+  console.error('❌ Endereços dos contratos não encontrados no .env')
+  console.log('Certifique-se de que NEXT_PUBLIC_BINGO_CONTRACT_ADDRESS e NEXT_PUBLIC_CARTELA_CONTRACT_ADDRESS estão definidos')
+  process.exit(1)
+}
+
+console.log('📋 Endereços carregados do .env:')
+console.log('🎯 BINGO:', BINGO_ADDRESS)
+console.log('🎫 CARTELA:', CARTELA_ADDRESS)
 
 async function debugContracts() {
   console.log("🔍 DIAGNÓSTICO DOS CONTRATOS")

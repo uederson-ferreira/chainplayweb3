@@ -305,5 +305,12 @@ contract CartelaContract {
     {
         return numerosCartela[_cartelaId][_numero];
     }
-}
 
+    /**
+     * @notice Retorna o número total de cartelas já criadas.
+     * @dev Corresponde ao ID da próxima cartela a ser criada.
+     */
+    function getTotalCartelas() external view returns (uint256) {
+        return _proximoCartelaId;
+    }
+}

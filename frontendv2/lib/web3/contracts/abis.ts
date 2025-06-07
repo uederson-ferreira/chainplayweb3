@@ -1,5 +1,5 @@
 // ABIs gerados automaticamente do Foundry - não editar manualmente
-// Gerado em: 2025-06-06T13:47:32.875Z
+// Gerado em: 2025-06-07T12:34:03.613Z
 // Fonte: contracts/out/
 
 export const CARTELA_ABI = [
@@ -191,6 +191,19 @@ export const CARTELA_ABI = [
         "name": "",
         "type": "uint256[]",
         "internalType": "uint256[]"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTotalCartelas",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"

@@ -1,0 +1,38 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+via_ir = true
+optimizer = true
+optimizer_runs = 200
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
+
+remappings = [
+    '@chainlink/contracts/src/=lib/chainlink/contracts/src/',
+    'forge-std/=lib/forge-std/src/',
+    '@optimism/interfaces/=lib/optimism/packages/contracts-bedrock/interfaces/',
+    '@optimism/universal/=lib/optimism/packages/contracts-bedrock/src/universal/',
+    '@optimism/libraries/=lib/optimism/packages/contracts-bedrock/src/libraries/',
+    '@optimism/L1/=lib/optimism/packages/contracts-bedrock/src/L1/',
+    '@optimism/L2/=lib/optimism/packages/contracts-bedrock/src/L2/',
+    '@optimism/legacy/=lib/optimism/packages/contracts-bedrock/interfaces/legacy/',
+    '@optimism/src/=lib/optimism/packages/contracts-bedrock/src/',
+    '@optimism/interfaces/universal/=lib/optimism/packages/contracts-bedrock/interfaces/universal/',
+    '@optimism/interfaces/L1/=lib/optimism/packages/contracts-bedrock/interfaces/L1/',
+    '@optimism/interfaces/L2/=lib/optimism/packages/contracts-bedrock/interfaces/L2/',
+    '@optimism/src/universal/=lib/optimism/packages/contracts-bedrock/src/universal/',
+    '@optimism/src/L1/=lib/optimism/packages/contracts-bedrock/src/L1/',
+    '@optimism/src/L2/=lib/optimism/packages/contracts-bedrock/src/L2/',
+    '@optimism/src/libraries/=lib/optimism/packages/contracts-bedrock/src/libraries/'
+]
+
+# Allow reading files from the optimism folder
+fs_permissions = [
+    { access = "read", path = "./lib/optimism" },
+    { access = "read-write", path = "./deployment.json" },
+    { access = "read-write", path = "../frontendv2/scripts/" },
+    { access = "read-write", path = "../frontendv2/scripts/deployment.json" },
+    { access = "read", path = "./out/" },
+    { access = "read", path = "./" }
+]

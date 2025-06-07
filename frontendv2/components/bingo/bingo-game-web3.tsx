@@ -21,6 +21,7 @@ import GameStats from "./game-stats"
 import { useToast } from "@/hooks/use-toast"
 import { CONTRACTS } from "@/lib/web3/config"
 import { CARTELA_ABI } from "@/lib/web3/contracts/abis"
+import { BINGO_ABI } from "@/lib/web3/contracts/abis"  // ← ADICIONAR
 import { createPublicClient, http } from 'viem'
 import { localChain } from "@/lib/web3/config"
 
@@ -36,7 +37,7 @@ interface BingoGameWeb3Props {
 export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
   const { address, isConnected, chainId, isConnecting, isReconnecting } = useAccount()
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [currentRoundId, setCurrentRoundId] = useState<bigint>(BigInt(1))
+  const [currentRoundId, setCurrentRoundId] = useState<bigint>(BigInt(0))
   const [selectedCard, setSelectedCard] = useState<string | null>(null)
   const [isRegisteringNumbers, setIsRegisteringNumbers] = useState(false)
   const { toast } = useToast()
@@ -46,8 +47,10 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   
   const { userCards, isLoading: isLoadingCards, totalCards, refetchUserCards } = useUserCartelasCompletas()
-  const { criarCartela, registrarNumeros, isPending: isCreatingCard, isConfirmed, hash: txHash, precoBase } = useCartelaContract()
-  const { iniciarRodada, participar, sortearNumero, isPending: isBingoLoading } = useBingoContract()
+  const { criarCartela, registrarNumeros, isPending: isCreatingCard, isConfirmed: isCartelaConfirmed, hash: txHash, precoBase } = useCartelaContract()
+  const { iniciarRodada, participar, sortearNumero, hash, isPending: isBingoLoading, isConfirming, isConfirmed } = useBingoContract()
+
+
   const { rodada } = useRodadaData(currentRoundId)
   
   const isCorrectNetwork = chainId === 1
@@ -61,6 +64,17 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
       timeoutRef.current = null
     }
   }, [])
+
+  useEffect(() => {
+    console.log('🔍 DEBUG COMPLETO:', {
+      CONTRACTS,
+      address,
+      chainId,
+      isCorrectNetwork,
+      currentRoundId: currentRoundId.toString(),
+      rodada
+    })
+  }, [address, chainId, currentRoundId, rodada])
 
   // Detectar início de conexão - SIMPLIFICADO
   useEffect(() => {
@@ -306,58 +320,263 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
   }
 
   const handleDrawNumber = async () => {
-    if (!isConnected || !rodada) return
+      console.log('🎲 SORTEANDO NÚMERO...')
+      console.log('📊 Estado:', { isConnected, rodada })
+      
+      if (!isConnected || !rodada) {
+        toast({
+          title: "Erro",
+          description: "Conecte sua carteira e certifique-se que há uma rodada ativa.",
+          variant: "destructive",
+        })
+        return
+      }
 
-    if (!isCorrectNetwork) {
+      if (!isCorrectNetwork) {
+        toast({
+          title: "Rede incorreta",
+          description: "Conecte-se à rede local para sortear números.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      console.log('🎯 Rodada atual:', {
+        id: rodada.id.toString(),
+        estado: rodada.estado,
+        numeroMaximo: rodada.numeroMaximo,
+        vrfPendente: rodada.pedidoVrfPendente
+      })
+
+      try {
+        console.log('📤 Enviando transação de sortear número...')
+        await sortearNumero(currentRoundId)
+        toast({
+          title: "Número sorteado!",
+          description: "Um novo número foi sorteado via Chainlink VRF.",
+        })
+      } catch (error: any) {
+        console.error("❌ Erro ao sortear número:", error)
+        console.error("❌ Stack:", error.stack)
+        
+        let errorMessage = "Erro desconhecido"
+        if (error.message?.includes("apenas operador")) {
+          errorMessage = "Você não tem permissão de operador"
+        } else if (error.message?.includes("not active")) {
+          errorMessage = "Rodada não está ativa"
+        } else if (error.message) {
+          errorMessage = error.message
+        }
+        
+        toast({
+          title: "Erro ao sortear número",
+          description: errorMessage,
+          variant: "destructive",
+        })
+      }
+    }
+
+  const handleStartRound = async () => {
+    console.log('🎯 INICIANDO handleStartRound CORRIGIDO')
+    console.log('🔍 Estado inicial:', { isConnected, isCorrectNetwork })
+    
+    if (!isConnected) {
+      console.log('❌ Carteira não conectada')
       toast({
-        title: "Rede incorreta",
-        description: "Conecte-se à rede local para sortear números.",
+        title: "Carteira não conectada",
+        description: "Conecte sua carteira primeiro.",
         variant: "destructive",
       })
       return
     }
 
-    try {
-      await sortearNumero(currentRoundId)
+    if (!isCorrectNetwork) {
+      console.log('❌ Rede incorreta, chainId:', chainId)
       toast({
-        title: "Número sorteado!",
-        description: "Um novo número foi sorteado via Chainlink VRF.",
+        title: "Rede incorreta",
+        description: "Conecte-se à rede local (localhost:8545) para jogar.",
+        variant: "destructive",
       })
-    } catch (error) {
-      console.error("Erro ao sortear número:", error)
+      return
+    }
+
+    console.log('✅ Validações básicas passaram')
+
+    try {
+      // ========================================
+      // CONFIGURAÇÕES DA RODADA - VALORES CORRETOS
+      // ========================================
+      const numeroMaximo = 75
+      const taxaEntrada = parseEther("0.01")        // 0.01 ETH
+      const timeoutRodada = BigInt(3600)            // 1 hora em segundos
+      const padroesVitoria = [true, true, true, false] // [linha, coluna, diagonal, cartela_completa]
+
+      console.log('📋 Configurações da rodada:', {
+        numeroMaximo,
+        taxaEntrada: taxaEntrada.toString(),
+        taxaEntradaETH: (Number(taxaEntrada) / 1e18).toFixed(4) + ' ETH',
+        timeoutRodada: timeoutRodada.toString(),
+        timeoutRodadaHoras: Number(timeoutRodada) / 3600 + ' horas',
+        padroesVitoria
+      })
+
+      console.log('📤 Chamando iniciarRodada...')
+
+      // ========================================
+      // CHAMADA CORRIGIDA - COM AWAIT E TRATAMENTO
+      // ========================================
+      const resultado = await iniciarRodada(
+        numeroMaximo,
+        taxaEntrada,
+        timeoutRodada,
+        padroesVitoria
+      )
+
+      console.log('🎉 iniciarRodada executada!')
+      console.log('📋 Resultado:', resultado)
+      console.log('📋 Hash do hook:', hash)
+
+      // Feedback imediato
       toast({
-        title: "Erro",
-        description: "Erro ao sortear número.",
+        title: "Transação enviada!",
+        description: "Iniciando rodada de Bingo...",
+      })
+
+    } catch (error: any) {
+      console.error("❌ ERRO COMPLETO no handleStartRound:", error)
+      
+      // Tratamento de erros melhorado
+      let errorTitle = "Erro ao iniciar rodada"
+      let errorMessage = "Erro desconhecido"
+
+      if (error?.message?.includes("cancelada pelo usuário")) {
+        errorTitle = "Transação cancelada"
+        errorMessage = "Você cancelou a transação na MetaMask"
+      } else if (error?.message?.includes("ETH insuficiente")) {
+        errorTitle = "Saldo insuficiente"
+        errorMessage = "Você não tem ETH suficiente para pagar o gas"
+      } else if (error?.message?.includes("operador")) {
+        errorTitle = "Sem permissão"
+        errorMessage = "Você precisa ser operador para iniciar rodadas"
+      } else if (error?.message) {
+        errorMessage = error.message
+      }
+
+      toast({
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive",
       })
     }
   }
 
-  const handleStartRound = async () => {
-    if (!isConnected || !isCorrectNetwork) return
+  // ========================================
+  // ADICIONE TAMBÉM ESTE useEffect PARA MONITORAR O HASH
+  // ========================================
 
-    try {
-      const numeroMaximo = 75
-      const taxaEntrada = parseEther("0.01")
-      const timeoutRodada = BigInt(3600)
-      const padroesVitoria = [true, true, true, false]
-
-      await iniciarRodada(numeroMaximo, taxaEntrada, timeoutRodada, padroesVitoria)
+  // Adicione este useEffect no componente para monitorar quando o hash aparecer:
+  useEffect(() => {
+    if (hash && !isConfirming && !isConfirmed) {
+      console.log('🔍 Novo hash detectado:', hash)
+      console.log('🔍 Status da transação:', { isConfirming, isConfirmed })
       
       toast({
-        title: "Rodada iniciada!",
-        description: "Nova rodada criada com taxa de 0.01 ETH.",
-      })
-    } catch (error) {
-      console.error("Erro ao iniciar rodada:", error)
-      toast({
-        title: "Erro",
-        description: "Erro ao iniciar rodada. Verifique se você é operador.",
-        variant: "destructive",
+        title: "Transação enviada!",
+        description: `Hash: ${hash.slice(0, 10)}...${hash.slice(-6)}`,
       })
     }
-  }
+    
+    if (isConfirming) {
+      console.log('⏳ Transação confirmando...')
+      toast({
+        title: "Confirmando transação...",
+        description: "Aguarde a confirmação na blockchain.",
+      })
+    }
+    
+    if (isConfirmed) {
+      console.log('✅ Transação confirmada!')
+      toast({
+        title: "Rodada iniciada com sucesso!",
+        description: "A nova rodada está ativa.",
+      })
+    }
+  }, [hash, isConfirming, isConfirmed])
 
+  // ========================================
+  // TESTE DE CONECTIVIDADE COM O CONTRATO
+  // ========================================
+
+  // Adicione também este useEffect para testar o contrato:
+  useEffect(() => {
+    const testContract = async () => {
+      if (!isConnected || !isCorrectNetwork) return
+      
+      try {
+        console.log('🧪 Testando contrato Bingo...')
+        console.log('📍 Endereço:', CONTRACTS.BINGO)
+        
+        // IMPORTANTE: Usar o publicClient do arquivo para testar
+        const publicClient = createPublicClient({
+          chain: localChain,
+          transport: http("http://127.0.0.1:8545"),
+        })
+        
+        // Testar se o endereço tem código
+        const code = await publicClient.getBytecode({
+          address: CONTRACTS.BINGO
+        })
+        
+        console.log('📋 Contrato tem código?', code ? 'SIM' : 'NÃO')
+        console.log('📋 Tamanho do código:', code?.length || 0)
+        
+        if (!code) {
+          console.error('❌ PROBLEMA: Contrato não foi deployado neste endereço!')
+          toast({
+            title: "Erro no contrato",
+            description: "Contrato Bingo não encontrado no endereço configurado",
+            variant: "destructive",
+          })
+          return
+        }
+        
+        // Testar uma função view do contrato
+        const admin = await publicClient.readContract({
+          address: CONTRACTS.BINGO,
+          abi: BINGO_ABI,
+          functionName: 'admin',
+        })
+        
+        console.log('👑 Admin do contrato:', admin)
+        console.log('👤 Seu endereço:', address)
+        console.log('🔑 Você é admin?', admin?.toLowerCase() === address?.toLowerCase())
+        
+        // Verificar se é operador
+        const isOperator = await publicClient.readContract({
+          address: CONTRACTS.BINGO,
+          abi: BINGO_ABI,
+          functionName: 'operadores',
+          args: [address as `0x${string}`],
+        })
+        
+        console.log('🔑 Você é operador?', isOperator)
+        
+        if (!isOperator) {
+          console.warn('⚠️ AVISO: Você não é operador - não pode iniciar rodadas')
+          toast({
+            title: "Aviso",
+            description: "Você não é operador. Apenas operadores podem iniciar rodadas.",
+            variant: "destructive",
+          })
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro ao testar contrato:', error)
+      }
+    }
+    
+    testContract()
+  }, [isConnected, isCorrectNetwork, address])
   // Estados de exibição - SIMPLIFICADOS
   const shouldShowGame = isConnected && !showConnectingState
   const shouldShowConnecting = showConnectingState || isConnecting || isReconnecting
@@ -486,7 +705,7 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
           {/* Área Principal do Jogo */}
           <div className="lg:col-span-2 space-y-6">
             {/* Rodada Ativa */}
-            {rodada ? (
+            {rodada && rodada.id > 0 ? (
               <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -521,6 +740,7 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                     )}
                   </div>
 
+                  {/* Informações adicionais da rodada */}
                   {rodada.premioTotal && rodada.premioTotal > 0 && (
                     <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
                       <p className="text-yellow-400 text-sm">

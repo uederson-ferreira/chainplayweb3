@@ -1,7 +1,7 @@
 {
-  "cartelaContract": "0x12AcE0b4176f9a97Fa8FAb9a859bdA62f440449f",
-  "bingoContract": "0x6C8Ce2B62DB1fc444CeA525296735f94304E02D9",
+  "cartelaContract": "0x4f0Ab9214649A6539586FbeB575b370Ba52Bd794",
+  "bingoContract": "0x16932B0c1eA503E4a40C7a75AC7200b4304C8De2",
   "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "timestamp": "1749217427",
+  "timestamp": "1749299359",
   "network": "localhost-fork"
 }

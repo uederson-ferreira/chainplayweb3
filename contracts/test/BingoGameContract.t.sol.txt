@@ -3,7 +3,7 @@ pragma solidity ^0.8.20;
 
 import {VRFCoordinatorV2Interface} from "@chainlink/contracts/vrf/interfaces/VRFCoordinatorV2Interface.sol";
 import {VRFConsumerBaseV2} from "@chainlink/contracts/vrf/VRFConsumerBaseV2.sol";
-import {CartelaContract} from "./CartelaContract.sol";
+import {CartelaContract} from "../src/CartelaContract.sol";
 
 contract BingoGameContract is VRFConsumerBaseV2 {
     using SafeMath for uint256;
@@ -113,7 +113,7 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         s_keyHash = _keyHash;
         admin = _admin;
         feeCollector = _feeCollector;
-        operadores[_admin] = true; 
+        cartelaContract.setBingoGameContract(address(this));
     }
 
     function iniciarRodada(
@@ -155,7 +155,7 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         require(rodada.estado == EstadoRodada.Aberta, unicode"BingoGame: Round is not open");
         require(msg.value >= rodada.taxaEntrada, unicode"BingoGame: Insufficient entry fee");
 
-        (, , , address dono, bool numerosRegistrados, /*bool emUso*/, ) = cartelaContract.cartelas(_cartelaId);
+        (, , , address dono, bool numerosRegistrados, bool emUso, ) = cartelaContract.cartelas(_cartelaId);
         require(dono != address(0), unicode"BingoGame: Card does not exist");
         require(dono == msg.sender, unicode"BingoGame: Caller is not the owner of the card");
         require(numerosRegistrados, unicode"BingoGame: Card numbers are not registered");
@@ -229,7 +229,7 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         bool vencedorEncontrado = false;
         for (uint i = 0; i < numParticipantes; i++) {
             uint256 cartelaId = rodada.listaCartelasParticipantes[i];
-            (, uint8 linhas, uint8 colunas, address dono, , /*bool emUso*/, ) = cartelaContract.cartelas(cartelaId);
+            (, uint8 linhas, uint8 colunas, address dono, , bool emUso, ) = cartelaContract.cartelas(cartelaId);
             uint[] memory numerosCartela = cartelaContract.getNumerosCartela(cartelaId);
             bool ganhou = false;
             if (rodada.padroesVitoriaAtivos[PadraoVitoria.Linha]) {

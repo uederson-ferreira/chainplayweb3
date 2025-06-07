@@ -4,7 +4,11 @@
 import { createPublicClient, http } from 'viem'
 
 const RPC_URL = "http://127.0.0.1:8545"
-const CARTELA_ADDRESS = "0x64f5219563e28EeBAAd91Ca8D31fa3b36621FD4f" // Do erro nos logs
+require('dotenv').config()
+const CONTRACTS = {
+  CARTELA: process.env.NEXT_PUBLIC_CARTELA_CONTRACT_ADDRESS,
+  BINGO: process.env.NEXT_PUBLIC_BINGO_CONTRACT_ADDRESS
+}
 
 const publicClient = createPublicClient({
   chain: {

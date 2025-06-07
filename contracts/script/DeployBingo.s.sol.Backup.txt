@@ -49,7 +49,7 @@ contract DeployBingo is Script {
         // 3. Configure contracts
         console.log("\n Configuring contracts...");
         cartelaContract.setBingoGameContract(address(bingoContract));
-        //bingoContract.setOperador(deployer, true);
+        bingoContract.setOperador(deployer, true);
         console.log("Contracts configured");
         
         vm.stopBroadcast();
