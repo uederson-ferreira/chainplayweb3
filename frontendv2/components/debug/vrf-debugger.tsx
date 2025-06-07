@@ -436,25 +436,46 @@ const fetchRoles = async () => {
   const fetchCartelaData = async () => {
       if (!checkEthereumProvider() || !(await checkNetwork()) || !address) return;
       try {
-          addLog('🔄 Buscando dados de cartela...', 'info');
+          addLog('🔄 Buscando dados de cartela com método corrigido...', 'info');
 
-          // 1. Preço Base (sem alteração)
+          // 1. Preço Base
           const precoRes: string = await (window as any).ethereum.request({
               method: 'eth_call',
               params: [{ to: CONTRACTS.CARTELA, data: '0x7847d950' /* precoBaseCartela() */ }, 'latest'],
           });
           const preco = parseInt(precoRes, 16) / 1e18;
 
-          // 2. Total de Cartelas (usando a NOVA função)
+          // 2. Total de Cartelas
           const totalRes: string = await (window as any).ethereum.request({
               method: 'eth_call',
               params: [{ to: CONTRACTS.CARTELA, data: '0xd94b6851' /* getTotalCartelas() */ }, 'latest'],
           });
           const total = parseInt(totalRes, 16);
-          
-          // 3. Gerar a lista de IDs das "suas" cartelas
-          // A lógica simplificada para o debugger continua válida e segura
-          const minhasCartelasIds = Array.from({ length: total }, (_, i) => i);
+          addLog(`Total de ${total} cartelas no contrato. Verificando posse...`, 'info');
+
+          // 3. Buscar minhas cartelas USANDO A NOVA FUNÇÃO getCartelaInfo
+          let minhasCartelasIds: number[] = [];
+          for (let i = 0; i < total; i++) {
+              const callData = '0x939a7a5f' + i.toString(16).padStart(64, '0');
+              
+              const cartelaInfoRes: string = await (window as any).ethereum.request({
+                  method: 'eth_call',
+                  params: [{ to: CONTRACTS.CARTELA, data: callData }, 'latest'],
+              });
+              
+              // Decodificar a tupla retornada: id, dono, numerosRegistrados, emUso, foiGasta
+              // O 'dono' é o segundo valor. Ele começa após 32 bytes (64 hex chars) do primeiro valor.
+              // O prefixo '0x' tem 2 chars.
+              // 2 (0x) + 32*2 (id) = 66. Mas o endereço é alinhado, então pegamos do byte 32 ao 64.
+              // Na string de retorno, cada valor tem 64 caracteres hex.
+              // Dono: slice(2 + 1*64, 2 + 2*64), pegar os últimos 40 caracteres (20 bytes).
+              const donoHex = cartelaInfoRes.slice(66, 130);
+              const dono = '0x' + donoHex.slice(-40);
+
+              if (dono.toLowerCase() === address.toLowerCase()) {
+                  minhasCartelasIds.push(i);
+              }
+          }
           
           setCartelaData({
               precoBase: preco.toString(),

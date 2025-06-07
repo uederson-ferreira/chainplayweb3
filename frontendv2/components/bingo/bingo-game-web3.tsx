@@ -25,6 +25,11 @@ import { BINGO_ABI } from "@/lib/web3/contracts/abis"  // ← ADICIONAR
 import { createPublicClient, http } from 'viem'
 import { localChain } from "@/lib/web3/config"
 
+import { useWriteContract } from "wagmi"; 
+import { useIsOperator } from "@/lib/web3/hooks/use-bingo-contract";
+import deployment from "@/lib/web3/contracts/deployment.json";
+// import { AdminRoundManager } from "@/components/dashboard/AdminRoundManager";
+
 const publicClient = createPublicClient({
   chain: localChain,
   transport: http("http://127.0.0.1:8545"),
@@ -35,6 +40,33 @@ interface BingoGameWeb3Props {
 }
 
 export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
+
+
+    // 2. Chame o novo hook e o hook de escrita do wagmi
+  const { isOperator, isLoading: isLoadingOperator } = useIsOperator();
+  const { writeContract, isPending } = useWriteContract();
+
+  // 3. Substitua COMPLETAMENTE sua função handleStartRound existente por esta:
+  const handleStartRound = () => {
+    // A lógica para criar os argumentos da rodada vai aqui
+    const numeroMaximo = 75;
+    const taxaEntrada = parseEther("0.01");
+    const timeoutRodada = BigInt(3600);
+    const padroesVitoria = [true, true, true, false];
+
+    // Chamada usando o hook do wagmi
+    writeContract({
+        address: deployment.bingoContract as `0x${string}`, // Importe 'deployment' se necessário
+        abi: BINGO_ABI, // Importe 'BINGO_ABI' se necessário
+        functionName: 'iniciarRodada',
+        args: [numeroMaximo, taxaEntrada, timeoutRodada, padroesVitoria],
+    }, {
+        onSuccess: (hash) => toast({ title: "🚀 Rodada Criada!", description: `Hash: ${hash}` }),
+        onError: (err) => toast({ title: "❌ Erro ao criar rodada", description: err.message, variant: "destructive" })
+    });
+  };
+
+
   const { address, isConnected, chainId, isConnecting, isReconnecting } = useAccount()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [currentRoundId, setCurrentRoundId] = useState<bigint>(BigInt(0))
@@ -159,95 +191,80 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
   }, [isConfirmed, txHash, toast, refetchUserCards])
 
   const registerNumbers = async (cartelaId: bigint) => {
-    console.log('🎯🎯🎯 FUNÇÃO registerNumbers CHAMADA!')
-    
-    setIsRegisteringNumbers(true)
-    try {
-      console.log('🎯 INICIANDO REGISTRO MANUAL DE NÚMEROS')
+      console.log('🎯 Iniciando registro de números para a cartela:', cartelaId.toString());
       
-      if (!isConnected) {
-        throw new Error('Carteira não conectada')
+      setIsRegisteringNumbers(true);
+      try {
+          if (!isConnected || !address) throw new Error('Carteira não conectada');
+          if (!isCorrectNetwork) throw new Error('Rede incorreta');
+
+          console.log('🔍 Buscando informações da cartela via getCartelaInfo...');
+          
+          // Usando a nossa função view segura!
+          const cartelaInfo = await publicClient.readContract({
+              address: CONTRACTS.CARTELA,
+              abi: CARTELA_ABI,
+              functionName: 'getCartelaInfo',
+              args: [cartelaId],
+          }) as readonly [bigint, `0x${string}`, boolean, boolean, boolean];
+
+          const [id, dono, numerosRegistrados, emUso, foiGasta] = cartelaInfo;
+
+          if (dono.toLowerCase() !== address.toLowerCase()) {
+              throw new Error(`Você não é o dono desta cartela`);
+          }
+          if (numerosRegistrados) {
+              throw new Error('Esta cartela já tem números registrados');
+          }
+          if (emUso) {
+              throw new Error('Não pode registrar números enquanto a cartela está em uso');
+          }
+          if (foiGasta) {
+              throw new Error('Esta cartela já foi usada e não pode ser modificada');
+          }
+          
+          // A lógica para pegar linhas/colunas precisa de outra chamada, pois getCartelaInfo não as retorna.
+          // Vamos buscar do getter `cartelas` sabendo que ele pode falhar mas nos dá os dados que precisamos.
+          const cartelaDetails = await publicClient.readContract({
+              address: CONTRACTS.CARTELA,
+              abi: CARTELA_ABI,
+              functionName: 'cartelas',
+              args: [cartelaId],
+          }) as readonly [bigint, number, number, `0x${string}`, boolean, boolean, boolean, bigint];
+
+          const linhas = cartelaDetails[1];
+          const colunas = cartelaDetails[2];
+          const totalNumeros = linhas * colunas;
+
+          console.log(`🎲 Gerando ${totalNumeros} números únicos...`);
+          const numbersSet = new Set<number>();
+          while (numbersSet.size < totalNumeros) {
+              numbersSet.add(Math.floor(Math.random() * 99) + 1);
+          }
+          const uniqueNumbers = Array.from(numbersSet).map(n => BigInt(n));
+          
+          // Chamar a função de escrita do seu hook useCartelaContract
+          await registrarNumeros(cartelaId, uniqueNumbers);
+        
+          toast({ title: "Números registrados com sucesso!" });
+
+          // Atualizar a UI após um tempo
+          setTimeout(() => {
+              if (refetchUserCards) {
+                  refetchUserCards();
+              }
+          }, 8000);
+
+      } catch (error: any) {
+          console.error('❌ Erro ao registrar números:', error);
+          toast({
+              title: "Erro ao registrar números",
+              description: error.message,
+              variant: "destructive",
+          });
+      } finally {
+          setIsRegisteringNumbers(false);
       }
-      
-      if (!isCorrectNetwork) {
-        throw new Error('Rede incorreta')
-      }
-      
-      console.log('🔍 Buscando dados da cartela...')
-      const cartela = await publicClient.readContract({
-        address: CONTRACTS.CARTELA,
-        abi: CARTELA_ABI,
-        functionName: 'cartelas',
-        args: [cartelaId],
-      }) as [bigint, number, number, string, boolean, boolean, bigint]
-      
-      const linhas = cartela[1]
-      const colunas = cartela[2]
-      const totalNumeros = linhas * colunas
-      
-      if (cartela[3].toLowerCase() !== address?.toLowerCase()) {
-        throw new Error(`Você não é o dono desta cartela`)
-      }
-      
-      if (cartela[4]) {
-        throw new Error('Esta cartela já tem números registrados')
-      }
-      
-      console.log(`🎲 Gerando ${totalNumeros} números únicos...`)
-      
-      const numbersSet = new Set<number>()
-      while (numbersSet.size < totalNumeros) {
-        numbersSet.add(Math.floor(Math.random() * 75) + 1)
-      }
-      const uniqueNumbers = Array.from(numbersSet)
-      const numbers = uniqueNumbers.map(n => BigInt(n))
-      
-      const hash = await registrarNumeros(cartelaId, numbers)
-      console.log('✅ Hash da transação:', hash)
-      
-      toast({
-        title: "Transação enviada!",
-        description: `Registrando ${totalNumeros} números na cartela...`,
-      })
-      
-      // Aguardar confirmação
-      await new Promise(resolve => setTimeout(resolve, 8000))
-      
-      toast({
-        title: "Números registrados com sucesso!",
-        description: `Cartela ${linhas}x${colunas} preenchida.`,
-      })
-      
-      setTimeout(() => {
-        if (refetchUserCards) {
-          refetchUserCards()
-        }
-      }, 3000)
-      
-    } catch (error: any) {
-      console.error('❌ Erro ao registrar números:', error)
-      
-      let errorMessage = "Erro desconhecido"
-      if (error.message?.includes("não é o dono")) {
-        errorMessage = "Você não é o dono desta cartela"
-      } else if (error.message?.includes("já tem números")) {
-        errorMessage = "Esta cartela já tem números registrados"
-      } else if (error.message?.includes("user rejected")) {
-        errorMessage = "Transação cancelada pelo usuário"
-      } else if (error.message?.includes("insufficient funds")) {
-        errorMessage = "ETH insuficiente para pagar o gas"
-      } else if (error.message) {
-        errorMessage = error.message
-      }
-      
-      toast({
-        title: "Erro ao registrar números",
-        description: errorMessage,
-        variant: "destructive",
-      })
-    } finally {
-      setIsRegisteringNumbers(false)
-    }
   }
 
   const handleCreateCard = async (rows: number, columns: number) => {
@@ -376,99 +393,99 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
       }
     }
 
-  const handleStartRound = async () => {
-    console.log('🎯 INICIANDO handleStartRound CORRIGIDO')
-    console.log('🔍 Estado inicial:', { isConnected, isCorrectNetwork })
+  // const handleStartRound = async () => {
+  //   console.log('🎯 INICIANDO handleStartRound CORRIGIDO')
+  //   console.log('🔍 Estado inicial:', { isConnected, isCorrectNetwork })
     
-    if (!isConnected) {
-      console.log('❌ Carteira não conectada')
-      toast({
-        title: "Carteira não conectada",
-        description: "Conecte sua carteira primeiro.",
-        variant: "destructive",
-      })
-      return
-    }
+  //   if (!isConnected) {
+  //     console.log('❌ Carteira não conectada')
+  //     toast({
+  //       title: "Carteira não conectada",
+  //       description: "Conecte sua carteira primeiro.",
+  //       variant: "destructive",
+  //     })
+  //     return
+  //   }
 
-    if (!isCorrectNetwork) {
-      console.log('❌ Rede incorreta, chainId:', chainId)
-      toast({
-        title: "Rede incorreta",
-        description: "Conecte-se à rede local (localhost:8545) para jogar.",
-        variant: "destructive",
-      })
-      return
-    }
+  //   if (!isCorrectNetwork) {
+  //     console.log('❌ Rede incorreta, chainId:', chainId)
+  //     toast({
+  //       title: "Rede incorreta",
+  //       description: "Conecte-se à rede local (localhost:8545) para jogar.",
+  //       variant: "destructive",
+  //     })
+  //     return
+  //   }
 
-    console.log('✅ Validações básicas passaram')
+  //   console.log('✅ Validações básicas passaram')
 
-    try {
-      // ========================================
-      // CONFIGURAÇÕES DA RODADA - VALORES CORRETOS
-      // ========================================
-      const numeroMaximo = 75
-      const taxaEntrada = parseEther("0.01")        // 0.01 ETH
-      const timeoutRodada = BigInt(3600)            // 1 hora em segundos
-      const padroesVitoria = [true, true, true, false] // [linha, coluna, diagonal, cartela_completa]
+  //   try {
+  //     // ========================================
+  //     // CONFIGURAÇÕES DA RODADA - VALORES CORRETOS
+  //     // ========================================
+  //     const numeroMaximo = 75
+  //     const taxaEntrada = parseEther("0.01")        // 0.01 ETH
+  //     const timeoutRodada = BigInt(3600)            // 1 hora em segundos
+  //     const padroesVitoria = [true, true, true, false] // [linha, coluna, diagonal, cartela_completa]
 
-      console.log('📋 Configurações da rodada:', {
-        numeroMaximo,
-        taxaEntrada: taxaEntrada.toString(),
-        taxaEntradaETH: (Number(taxaEntrada) / 1e18).toFixed(4) + ' ETH',
-        timeoutRodada: timeoutRodada.toString(),
-        timeoutRodadaHoras: Number(timeoutRodada) / 3600 + ' horas',
-        padroesVitoria
-      })
+  //     console.log('📋 Configurações da rodada:', {
+  //       numeroMaximo,
+  //       taxaEntrada: taxaEntrada.toString(),
+  //       taxaEntradaETH: (Number(taxaEntrada) / 1e18).toFixed(4) + ' ETH',
+  //       timeoutRodada: timeoutRodada.toString(),
+  //       timeoutRodadaHoras: Number(timeoutRodada) / 3600 + ' horas',
+  //       padroesVitoria
+  //     })
 
-      console.log('📤 Chamando iniciarRodada...')
+  //     console.log('📤 Chamando iniciarRodada...')
 
-      // ========================================
-      // CHAMADA CORRIGIDA - COM AWAIT E TRATAMENTO
-      // ========================================
-      const resultado = await iniciarRodada(
-        numeroMaximo,
-        taxaEntrada,
-        timeoutRodada,
-        padroesVitoria
-      )
+  //     // ========================================
+  //     // CHAMADA CORRIGIDA - COM AWAIT E TRATAMENTO
+  //     // ========================================
+  //     const resultado = await iniciarRodada(
+  //       numeroMaximo,
+  //       taxaEntrada,
+  //       timeoutRodada,
+  //       padroesVitoria
+  //     )
 
-      console.log('🎉 iniciarRodada executada!')
-      console.log('📋 Resultado:', resultado)
-      console.log('📋 Hash do hook:', hash)
+  //     console.log('🎉 iniciarRodada executada!')
+  //     console.log('📋 Resultado:', resultado)
+  //     console.log('📋 Hash do hook:', hash)
 
-      // Feedback imediato
-      toast({
-        title: "Transação enviada!",
-        description: "Iniciando rodada de Bingo...",
-      })
+  //     // Feedback imediato
+  //     toast({
+  //       title: "Transação enviada!",
+  //       description: "Iniciando rodada de Bingo...",
+  //     })
 
-    } catch (error: any) {
-      console.error("❌ ERRO COMPLETO no handleStartRound:", error)
+  //   } catch (error: any) {
+  //     console.error("❌ ERRO COMPLETO no handleStartRound:", error)
       
-      // Tratamento de erros melhorado
-      let errorTitle = "Erro ao iniciar rodada"
-      let errorMessage = "Erro desconhecido"
+  //     // Tratamento de erros melhorado
+  //     let errorTitle = "Erro ao iniciar rodada"
+  //     let errorMessage = "Erro desconhecido"
 
-      if (error?.message?.includes("cancelada pelo usuário")) {
-        errorTitle = "Transação cancelada"
-        errorMessage = "Você cancelou a transação na MetaMask"
-      } else if (error?.message?.includes("ETH insuficiente")) {
-        errorTitle = "Saldo insuficiente"
-        errorMessage = "Você não tem ETH suficiente para pagar o gas"
-      } else if (error?.message?.includes("operador")) {
-        errorTitle = "Sem permissão"
-        errorMessage = "Você precisa ser operador para iniciar rodadas"
-      } else if (error?.message) {
-        errorMessage = error.message
-      }
+  //     if (error?.message?.includes("cancelada pelo usuário")) {
+  //       errorTitle = "Transação cancelada"
+  //       errorMessage = "Você cancelou a transação na MetaMask"
+  //     } else if (error?.message?.includes("ETH insuficiente")) {
+  //       errorTitle = "Saldo insuficiente"
+  //       errorMessage = "Você não tem ETH suficiente para pagar o gas"
+  //     } else if (error?.message?.includes("operador")) {
+  //       errorTitle = "Sem permissão"
+  //       errorMessage = "Você precisa ser operador para iniciar rodadas"
+  //     } else if (error?.message) {
+  //       errorMessage = error.message
+  //     }
 
-      toast({
-        title: errorTitle,
-        description: errorMessage,
-        variant: "destructive",
-      })
-    }
-  }
+  //     toast({
+  //       title: errorTitle,
+  //       description: errorMessage,
+  //       variant: "destructive",
+  //     })
+  //   }
+  // }
 
   // ========================================
   // ADICIONE TAMBÉM ESTE useEffect PARA MONITORAR O HASH
@@ -751,20 +768,27 @@ export default function BingoGameWeb3({ user }: BingoGameWeb3Props) {
                 </CardContent>
               </Card>
             ) : (
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                <CardContent className="py-8 text-center">
-                  <p className="text-slate-400 mb-4">Nenhuma rodada ativa no momento</p>
-                  <Button
-                    onClick={handleStartRound}
-                    disabled={isBingoLoading || !isCorrectNetwork}
-                    className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
-                  >
-                    {isBingoLoading ? "Iniciando..." : "Iniciar Nova Rodada"}
-                  </Button>
-                </CardContent>
-              </Card>
+              <main>
+                {/* ... */}
+                {isLoadingOperator ? (
+                  <p> Verificando permissões...</p>
+                ) : isOperator && (
+                  <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+                    <CardContent className="py-8 text-center">
+                      <p className="text-slate-400 mb-4">Nenhuma rodada ativa no momento</p>
+                      <Button
+                        onClick={handleStartRound}
+                        disabled={isBingoLoading || !isCorrectNetwork}
+                        className="bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
+                      >
+                        {isBingoLoading ? "Iniciando..." : "Iniciar Nova Rodada"}
+                      </Button>
+                      {/* <AdminRoundManager /> */}
+                    </CardContent>
+                  </Card>
+                )}
+              </main>
             )}
-
             {/* Cartelas do Usuário */}
             <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
               <CardHeader>

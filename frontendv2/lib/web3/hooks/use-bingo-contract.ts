@@ -1,14 +1,19 @@
 // ========================================
-// ARQUIVO CORRIGIDO: lib/web3/hooks/use-bingo-contract.ts
-// TODOS OS ERROS TYPESCRIPT RESOLVIDOS
+//lib/web3/hooks/use-bingo-contract.ts
 // ========================================
 
 "use client"
 
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi"
 import { parseEther } from "viem"
 import { BINGO_ABI } from "../contracts/abis"
 import { CONTRACTS } from "../config"
+import deployment from "@/lib/web3/contracts/deployment.json";
+
+const bingoContractConfig = {
+    address: deployment.bingoContract as `0x${string}`,
+    abi: BINGO_ABI,
+};
 
 export function useBingoContract() {
   const { writeContract, data: hash, isPending, error } = useWriteContract()
@@ -219,9 +224,8 @@ export function useBingoContract() {
 }
 
 // ========================================
-// HOOKS PARA LEITURA DE DADOS (sem mudanças)
+// HOOKS PARA LEITURA DE DADOS
 // ========================================
-
 // Hook para ler dados da rodada com TODOS os campos
 export function useRodadaData(rodadaId?: bigint) {
   const { data: rodadaRaw } = useReadContract({
@@ -286,4 +290,19 @@ export function useVencedores(rodadaId?: bigint) {
   return {
     vencedores: vencedores || [],
   }
+}
+
+export function useIsOperator() {
+  const { address, isConnected } = useAccount();
+
+  const { data, isLoading } = useReadContract({
+    ...bingoContractConfig, // Este config já deve estar definido no topo do seu arquivo
+    functionName: 'operadores',
+    args: [address!],
+    query: {
+      enabled: isConnected && !!address,
+    },
+  });
+
+  return { isOperator: data as boolean, isLoading };
 }

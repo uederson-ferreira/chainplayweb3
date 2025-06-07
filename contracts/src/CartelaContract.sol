@@ -25,6 +25,7 @@ contract CartelaContract {
         address dono; // Proprietário da cartela
         bool numerosRegistrados; // Flag para verificar se os números foram definidos
         bool emUso; // Flag para verificar se a cartela está em uso em alguma rodada
+        bool foiGasta; // Flag para verificar se a cartela foi usada
         uint256 preco; // Preço pago pela cartela
     }
 
@@ -256,11 +257,37 @@ contract CartelaContract {
         apenasBingoGame
         cartelaExiste(_cartelaId) 
     {
+        require(!cartelas[_cartelaId].foiGasta, "CartelaContract: A cartela ja foi gasta");
         cartelas[_cartelaId].emUso = _emUso;
         emit CartelaMarcadaEmUso(_cartelaId, _emUso);
     }
 
     // --- Funções View --- //
+
+    /**
+     * @notice Retorna informações básicas de uma cartela, excluindo o array de números.
+     * @dev Criada para evitar problemas de decodificação da ABI com arrays dinâmicos em structs.
+     */
+    function getCartelaInfo(uint256 _cartelaId) 
+        external 
+        view 
+        returns (
+            uint256 id,
+            address dono,
+            bool numerosRegistrados,
+            bool emUso,
+            bool foiGasta
+        ) 
+    {
+        Cartela storage c = cartelas[_cartelaId];
+        return (
+            c.id,
+            c.dono,
+            c.numerosRegistrados,
+            c.emUso,
+            c.foiGasta
+        );
+    }
 
     /**
      * @notice Obtém o array de números para uma cartela específica
@@ -304,6 +331,14 @@ contract CartelaContract {
         returns (bool) 
     {
         return numerosCartela[_cartelaId][_numero];
+    }
+
+    function marcarComoGasta(uint256 _cartelaId) 
+    external 
+    apenasBingoGame 
+    cartelaExiste(_cartelaId)
+    {
+        cartelas[_cartelaId].foiGasta = true;
     }
 
     /**

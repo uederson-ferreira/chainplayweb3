@@ -1,5 +1,5 @@
 // ABIs gerados automaticamente do Foundry - não editar manualmente
-// Gerado em: 2025-06-07T12:34:03.613Z
+// Gerado em: 2025-06-07T15:17:55.699Z
 // Fonte: contracts/out/
 
 export const CARTELA_ABI = [
@@ -132,6 +132,11 @@ export const CARTELA_ABI = [
         "internalType": "bool"
       },
       {
+        "name": "foiGasta",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
         "name": "preco",
         "type": "uint256",
         "internalType": "uint256"
@@ -178,6 +183,45 @@ export const CARTELA_ABI = [
   },
   {
     "type": "function",
+    "name": "getCartelaInfo",
+    "inputs": [
+      {
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "dono",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "numerosRegistrados",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "emUso",
+        "type": "bool",
+        "internalType": "bool"
+      },
+      {
+        "name": "foiGasta",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getNumerosCartela",
     "inputs": [
       {
@@ -207,6 +251,19 @@ export const CARTELA_ABI = [
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "marcarComoGasta",
+    "inputs": [
+      {
+        "name": "_cartelaId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",

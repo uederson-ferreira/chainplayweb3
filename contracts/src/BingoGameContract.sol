@@ -155,7 +155,7 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         require(rodada.estado == EstadoRodada.Aberta, unicode"BingoGame: Round is not open");
         require(msg.value >= rodada.taxaEntrada, unicode"BingoGame: Insufficient entry fee");
 
-        (, , , address dono, bool numerosRegistrados, /*bool emUso*/, ) = cartelaContract.cartelas(_cartelaId);
+        (, , , address dono, bool numerosRegistrados, /*bool emUso*/, , ) = cartelaContract.cartelas(_cartelaId);
         require(dono != address(0), unicode"BingoGame: Card does not exist");
         require(dono == msg.sender, unicode"BingoGame: Caller is not the owner of the card");
         require(numerosRegistrados, unicode"BingoGame: Card numbers are not registered");
@@ -229,7 +229,7 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         bool vencedorEncontrado = false;
         for (uint i = 0; i < numParticipantes; i++) {
             uint256 cartelaId = rodada.listaCartelasParticipantes[i];
-            (, uint8 linhas, uint8 colunas, address dono, , /*bool emUso*/, ) = cartelaContract.cartelas(cartelaId);
+            (, uint8 linhas, uint8 colunas, address dono, , /*bool emUso*/, , ) = cartelaContract.cartelas(cartelaId);
             uint[] memory numerosCartela = cartelaContract.getNumerosCartela(cartelaId);
             bool ganhou = false;
             if (rodada.padroesVitoriaAtivos[PadraoVitoria.Linha]) {
@@ -375,7 +375,9 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         require(successPlataforma, "BingoGame: Failed to send platform tax");
 
         for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
-            cartelaContract.marcarEmUso(rodada.listaCartelasParticipantes[i], false);
+            uint256 cartelaId = rodada.listaCartelasParticipantes[i];
+            cartelaContract.marcarEmUso(cartelaId, false); // Libera o lock
+            cartelaContract.marcarComoGasta(cartelaId);     //Marca em uso
         }
 
         emit RodadaFinalizada(rodada.id, rodada.premioTotal, rodada.vencedores.length);
@@ -391,13 +393,14 @@ contract BingoGameContract is VRFConsumerBaseV2 {
             "BingoGame: Round already finalized or canceled");
 
         for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
-            cartelaContract.marcarEmUso(rodada.listaCartelasParticipantes[i], false);
+            uint256 cartelaId = rodada.listaCartelasParticipantes[i];
+            cartelaContract.marcarEmUso(cartelaId, false); // Libera o "lock"
         }
 
         if (rodada.premioTotal > 0) {
             uint256 valorPorJogador = rodada.premioTotal.div(rodada.listaCartelasParticipantes.length);
             for (uint i = 0; i < rodada.listaCartelasParticipantes.length; i++) {
-                (, , , address dono, , , ) = cartelaContract.cartelas(rodada.listaCartelasParticipantes[i]);
+                (, , , address dono, , , , ) = cartelaContract.cartelas(rodada.listaCartelasParticipantes[i]);
                 (bool success, ) = dono.call{value: valorPorJogador}("");
                 require(success, "BingoGame: Failed to return prize");
             }
