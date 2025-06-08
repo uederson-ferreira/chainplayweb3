@@ -20,11 +20,12 @@ import GameStats from "./game-stats";
 import { useToast } from "@/hooks/use-toast";
 import { BINGO_ABI } from "@/lib/web3/contracts/abis";
 import deployment from "@/lib/web3/contracts/deployment.json";
-import CreateRoundModal from "./CreateRoundModal";
+//import CreateRoundModal from "./CreateRoundModal";
 import { useRoundCreation } from "./hooks/use-round-creation";
 import { useActiveRounds } from "@/lib/web3/hooks/use-active-rounds";
 import { useBingoActions } from './hooks/useBingoActions';
 import { useEnhancedActiveRounds } from "@/lib/web3/hooks/use-enhanced-active-rounds";
+import CreateRoundModal, { RichRoundCreationParams } from "./CreateRoundModal";
 
 // ===== TIPOS UNIFICADOS =====
 interface UnifiedRoundCreationParams {
@@ -38,7 +39,6 @@ interface UnifiedRoundCreationParams {
     cartelaCompleta: boolean;
   };
 }
-
 interface BingoGameWeb3Props {
   user: User;
 }
@@ -208,36 +208,68 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   };
 
-  // ✅ CORREÇÃO 2: Handler que converte tipos corretamente
-  const handleCreateRound = async (modalParams: any) => {
+
+  const handleCreateRound = async (params: RichRoundCreationParams) => {
     try {
-      console.log('🎯 Criando rodada personalizada:', modalParams);
+      console.log('🎯 Recebendo dados ricos do modal:', params);
       
-      // ✅ CONVERSÃO DE TIPOS: Modal -> Hook
-      const unifiedParams: UnifiedRoundCreationParams = {
-        numeroMaximo: modalParams.numeroMaximo,
-        taxaEntrada: modalParams.taxaEntrada,
-        timeoutHoras: modalParams.timeoutHoras || modalParams.timeout || 1, // ✅ Fallback
-        padroesVitoria: modalParams.padroesVitoria
+      // Futuramente, você pode querer passar `params` inteiros para o hook.
+      // Por agora, vamos extrair apenas o que o hook `useRoundCreation` precisa.
+      const paramsForHook: UnifiedRoundCreationParams = {
+        numeroMaximo: params.numeroMaximo,
+        taxaEntrada: params.taxaEntrada,
+        timeoutHoras: params.duracaoHoras, // Mapeando 'duracaoHoras' para 'timeoutHoras'
+        padroesVitoria: params.padroesVitoria
       };
       
-      console.log('🔄 Parâmetros convertidos:', unifiedParams);
+      console.log('🔄 Convertendo para o formato do hook:', paramsForHook);
       
-      await createRound(unifiedParams);
+      await createRound(paramsForHook);
       
-      // Fechar modal em caso de sucesso
+      toast({ title: "Sucesso!", description: "Sua rodada está sendo criada na blockchain." });
       setShowCreateRoundModal(false);
       
-      // Recarregar dados após 3 segundos
-      setTimeout(() => {
-        refetchRounds();
-      }, 3000);
+      setTimeout(() => refetchRounds(), 3000);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Erro na criação da rodada:', error);
-      // Modal permanece aberto para mostrar erro
+      toast({ 
+        title: "Erro ao criar rodada", 
+        description: error.message || "Ocorreu um erro, tente novamente.",
+        variant: "destructive"
+      });
     }
   };
+  // // ✅ CORREÇÃO 2: Handler que converte tipos corretamente
+  // const handleCreateRound = async (modalParams: any) => {
+  //   try {
+  //     console.log('🎯 Criando rodada personalizada:', modalParams);
+      
+  //     // ✅ CONVERSÃO DE TIPOS: Modal -> Hook
+  //     const unifiedParams: UnifiedRoundCreationParams = {
+  //       numeroMaximo: modalParams.numeroMaximo,
+  //       taxaEntrada: modalParams.taxaEntrada,
+  //       timeoutHoras: modalParams.timeoutHoras || modalParams.timeout || 1, // ✅ Fallback
+  //       padroesVitoria: modalParams.padroesVitoria
+  //     };
+      
+  //     console.log('🔄 Parâmetros convertidos:', unifiedParams);
+      
+  //     await createRound(unifiedParams);
+      
+  //     // Fechar modal em caso de sucesso
+  //     setShowCreateRoundModal(false);
+      
+  //     // Recarregar dados após 3 segundos
+  //     setTimeout(() => {
+  //       refetchRounds();
+  //     }, 3000);
+      
+  //   } catch (error) {
+  //     console.error('❌ Erro na criação da rodada:', error);
+  //     // Modal permanece aberto para mostrar erro
+  //   }
+  // };
 
   // ✅ HANDLER PARA ABRIR MODAL
   const handleStartRound = () => {
@@ -586,15 +618,15 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
         />
       )}
 
-      {/* ✅ CORREÇÃO 3: Modal de Criar Rodada com debug */}
+      {/* ✅ RENDERIZAR O MODAL CRIAR RODADA */}
       {showCreateRoundModal && (
         <CreateRoundModal
-          onClose={() => {
-            console.log('🎯 Fechando modal de criação de rodada...');
-            setShowCreateRoundModal(false);
-          }}
+          onClose={() => setShowCreateRoundModal(false)}
           onCreateRound={handleCreateRound}
           isCreating={isCreating}
+          // Você pode passar `currentStep` e `progress` do seu hook se os tiver
+          // currentStep={seuHook.currentStep} 
+          // progress={seuHook.progress}
         />
       )}
     </div>
