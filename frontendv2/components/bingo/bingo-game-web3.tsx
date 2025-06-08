@@ -1,5 +1,4 @@
 // components/bingo/bingo-game-web3.tsx
-
 "use client";
 
 import { parseEther, formatEther } from 'viem';
@@ -16,12 +15,29 @@ import type { User } from "@supabase/supabase-js";
 import WalletConnect from "@/components/web3/wallet-connect";
 import { useCartelaContract, useUserCartelasCompletas } from "@/lib/web3/hooks/use-cartela-contract";
 import { useIsOperator } from "@/lib/web3/hooks/use-bingo-contract";
-import { useActiveRounds } from "@/lib/web3/hooks/use-active-rounds"; // NOVO HOOK
 import CreateCardModal from "./create-card-modal";
 import GameStats from "./game-stats";
 import { useToast } from "@/hooks/use-toast";
 import { BINGO_ABI } from "@/lib/web3/contracts/abis";
 import deployment from "@/lib/web3/contracts/deployment.json";
+import CreateRoundModal from "./CreateRoundModal";
+import { useRoundCreation } from "./hooks/use-round-creation";
+import { useActiveRounds } from "@/lib/web3/hooks/use-active-rounds";
+import { useBingoActions } from './hooks/useBingoActions';
+import { useEnhancedActiveRounds } from "@/lib/web3/hooks/use-enhanced-active-rounds";
+
+// ===== TIPOS UNIFICADOS =====
+interface UnifiedRoundCreationParams {
+  numeroMaximo: number;
+  taxaEntrada: string; // em ETH
+  timeoutHoras: number;
+  padroesVitoria: {
+    linha: boolean;
+    coluna: boolean;
+    diagonal: boolean;
+    cartelaCompleta: boolean;
+  };
+}
 
 interface BingoGameWeb3Props {
   user: User;
@@ -30,40 +46,46 @@ interface BingoGameWeb3Props {
 export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
   const { address, isConnected, chainId } = useAccount();
   const { toast } = useToast();
-  
-  // Hooks para transações
+
+  // ✅ HOOKS EXISTENTES (funcionam)
   const { writeContract, data: hash, isPending, error } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
-
-  // Hooks customizados
   const { isOperator, isLoading: isLoadingOperator } = useIsOperator();
   const { userCards, isLoading: isLoadingCards, refetchUserCards } = useUserCartelasCompletas();
   const { criarCartela, isPending: isCreatingCard, isConfirmed: isCartelaConfirmed, precoBase } = useCartelaContract();
   
-  // Hook para rodadas ativas
-  const { 
+  // ✅ HOOKS CORRIGIDOS
+  const {
     activeRounds, 
-    currentRoundId, 
-    isLoading: isLoadingRounds, 
+    enhancedRounds,
+    currentRoundId,
+    isLoading: isLoadingRounds,
     error: roundsError,
-    refetch: refetchRounds,
+    refetchAll: refetchRounds,
     hasActiveRounds,
     getCurrentRound,
-    canJoinRounds
-  } = useActiveRounds();
+    canJoinRounds,
+    calculateEstimatedPrize,
+    hasSupabaseData,
+    stats
+  } = useEnhancedActiveRounds();
 
-  // ===== ADICIONE ESTA LINHA AQUI (DEPOIS DOS HOOKS) =====
+  // ✅ CORREÇÃO 1: Remover currentStep e progress que não existem
+  const { createRound, isCreating } = useRoundCreation();
+
+  const bingoActions = useBingoActions();
   const currentRound = getCurrentRound();
 
-  // Estados locais
+  // ✅ ESTADOS LOCAIS
+  const [showCreateRoundModal, setShowCreateRoundModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [isRegisteringNumbers, setIsRegisteringNumbers] = useState(false);
-
-  // Variáveis computadas
+  
+  // ✅ VARIÁVEIS COMPUTADAS
   const isCorrectNetwork = chainId === 1;
   
-  // Logs para debug
+  // ✅ LOGS DEBUG
   console.log('🎯 Estado atual do jogo:', {
     isConnected,
     isCorrectNetwork,
@@ -71,10 +93,11 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     activeRoundsCount: activeRounds.length,
     currentRoundId: currentRoundId?.toString(),
     canJoinRounds,
-    userCardsCount: userCards.length
+    userCardsCount: userCards.length,
+    showCreateRoundModal // Debug do modal
   });
 
-  // Monitorar transações confirmadas
+  // ✅ EFEITOS (mantidos)
   useEffect(() => {
     if (isConfirmed) {
       toast({ 
@@ -82,7 +105,6 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
         description: "Recarregando dados..." 
       });
       
-      // Recarregar tudo
       setTimeout(() => {
         refetchRounds();
         refetchUserCards();
@@ -90,7 +112,6 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }, [isConfirmed, refetchRounds, refetchUserCards]);
 
-  // Monitorar criação de cartelas
   useEffect(() => {
     if (isCartelaConfirmed) {
       toast({
@@ -102,8 +123,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }, [isCartelaConfirmed, refetchUserCards]);
 
-  // ===== FUNÇÕES DE AÇÃO =====
-
+  // ✅ FUNÇÕES DE MANIPULAÇÃO (handlers)
   const handleCreateCard = async (rows: number, columns: number) => {
     if (!isConnected || !isCorrectNetwork) {
       toast({
@@ -188,8 +208,52 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   };
 
-  // ===== RENDERIZAÇÃO =====
+  // ✅ CORREÇÃO 2: Handler que converte tipos corretamente
+  const handleCreateRound = async (modalParams: any) => {
+    try {
+      console.log('🎯 Criando rodada personalizada:', modalParams);
+      
+      // ✅ CONVERSÃO DE TIPOS: Modal -> Hook
+      const unifiedParams: UnifiedRoundCreationParams = {
+        numeroMaximo: modalParams.numeroMaximo,
+        taxaEntrada: modalParams.taxaEntrada,
+        timeoutHoras: modalParams.timeoutHoras || modalParams.timeout || 1, // ✅ Fallback
+        padroesVitoria: modalParams.padroesVitoria
+      };
+      
+      console.log('🔄 Parâmetros convertidos:', unifiedParams);
+      
+      await createRound(unifiedParams);
+      
+      // Fechar modal em caso de sucesso
+      setShowCreateRoundModal(false);
+      
+      // Recarregar dados após 3 segundos
+      setTimeout(() => {
+        refetchRounds();
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Erro na criação da rodada:', error);
+      // Modal permanece aberto para mostrar erro
+    }
+  };
 
+  // ✅ HANDLER PARA ABRIR MODAL
+  const handleStartRound = () => {
+    if (!isOperator) {
+      toast({
+        title: "Sem permissão",
+        description: "Apenas operadores podem criar rodadas",
+        variant: "destructive"
+      });
+      return;
+    }
+    console.log('🎯 Abrindo modal de criação de rodada...');
+    setShowCreateRoundModal(true);
+  };
+
+  // ✅ RENDERIZAÇÃO (sem modal por enquanto)
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -239,7 +303,6 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
           </div>
 
           <div className="flex items-center space-x-4">
-            {/* Link para Admin (se for operador) */}
             {isOperator && (
               <Link href="/admin/rounds">
                 <Button size="sm" variant="outline" className="border-cyan-500 text-cyan-400">
@@ -297,18 +360,23 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                       <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingRounds ? 'animate-spin' : ''}`} />
                       Atualizar
                     </Button>
+                    {/* ✅ BOTÃO PREPARADO PARA MODAL */}
                     {isOperator && (
-                      <Link href="/admin/rounds">
-                        <Button size="sm" className="bg-gradient-to-r from-cyan-500 to-purple-500">
-                          <Plus className="h-4 w-4 mr-1" />
-                          Criar Rodada
-                        </Button>
-                      </Link>
+                      <Button 
+                        size="sm" 
+                        className="bg-gradient-to-r from-cyan-500 to-purple-500"
+                        onClick={handleStartRound}
+                        disabled={isPending || isCreating}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        {(isPending || isCreating) ? "Criando..." : "Criar Rodada"}
+                      </Button>
                     )}
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
+                {/* Resto do conteúdo de rodadas */}
                 {isLoadingRounds ? (
                   <div className="text-center py-4">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400 mx-auto mb-2"></div>
@@ -321,7 +389,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                   </div>
                 ) : hasActiveRounds ? (
                   <div className="space-y-3">
-                    {activeRounds.map((round) => (
+                    {activeRounds.map((round: any) => (
                       <div key={round.id.toString()} className="p-4 bg-slate-700/50 rounded-lg border border-slate-600">
                         <div className="flex items-center justify-between mb-2">
                           <h3 className="text-white font-medium">Rodada #{round.id.toString()}</h3>
@@ -357,7 +425,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                           <div className="mt-3">
                             <p className="text-slate-400 text-sm mb-2">Números sorteados:</p>
                             <div className="flex flex-wrap gap-1">
-                              {round.numerosSorteados.slice(-10).map((num, i) => (
+                              {round.numerosSorteados.slice(-10).map((num: number, i: number) => (
                                 <Badge key={i} className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
                                   {num}
                                 </Badge>
@@ -371,7 +439,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                           </div>
                         )}
 
-                        {/* Ações (só para operadores) */}
+                        {/* Ações */}
                         {isOperator && round.estado === 1 && (
                           <div className="mt-3">
                             <Button
@@ -393,12 +461,14 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                     <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
                     <p className="text-slate-400 mb-4">Nenhuma rodada ativa encontrada</p>
                     {isOperator ? (
-                      <Link href="/admin/rounds">
-                        <Button className="bg-gradient-to-r from-cyan-500 to-purple-500">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Criar Primeira Rodada
-                        </Button>
-                      </Link>
+                      <Button 
+                        className="bg-gradient-to-r from-cyan-500 to-purple-500"
+                        onClick={handleStartRound}
+                        disabled={isPending || isCreating}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {(isPending || isCreating) ? "Criando..." : "Criar Primeira Rodada"}
+                      </Button>
                     ) : (
                       <p className="text-slate-500 text-sm">Aguarde um operador criar uma rodada</p>
                     )}
@@ -444,7 +514,6 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                         isParticipating={selectedCard === card.id}
                         canJoin={canJoinRounds}
                         isRegisteringNumbers={isRegisteringNumbers}
-                        // NOVAS PROPS:
                         hasActiveRounds={hasActiveRounds}
                         activeRoundsCount={activeRounds.length}
                       />
@@ -472,72 +541,39 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
             <WalletConnect />
             <GameStats userCards={userCards} activeRound={currentRound} />
             
-            {/* Informações Técnicas
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-white">
-                    Suas Cartelas ({userCards.length})
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={refetchRounds}
-                      size="sm"
-                      variant="outline"
-                      disabled={isLoadingRounds}
-                    >
-                      <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingRounds ? 'animate-spin' : ''}`} />
-                      Atualizar Rodadas
-                    </Button>
-                    <Button
-                      onClick={() => setShowCreateModal(true)}
-                      size="sm"
-                      disabled={isCreatingCard || !isCorrectNetwork}
-                      className="bg-gradient-to-r from-cyan-500 to-purple-500"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Nova Cartela
-                    </Button>
-                  </div>
-                </div>
+                <CardTitle className="text-white">Debug Info</CardTitle>
               </CardHeader>
-              <CardContent>
-                {isLoadingCards ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400 mx-auto mb-4"></div>
-                    <p className="text-slate-400">Carregando cartelas...</p>
-                  </div>
-                ) : userCards.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {userCards.map((card) => (
-                      <FixedBingoCard
-                        key={card.id}
-                        card={card}
-                        drawnNumbers={currentRound?.numerosSorteados || []}
-                        onJoinRound={handleJoinRound}
-                        isParticipating={selectedCard === card.id}
-                        canJoin={canJoinRounds}
-                        isRegisteringNumbers={isRegisteringNumbers}
-                        hasActiveRounds={hasActiveRounds}
-                        activeRoundsCount={activeRounds.length}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <p className="text-slate-400 mb-4">Você ainda não tem cartelas</p>
-                    <Button
-                      onClick={() => setShowCreateModal(true)}
-                      disabled={isCreatingCard || !isCorrectNetwork}
-                      className="bg-gradient-to-r from-cyan-500 to-purple-500"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Criar Primeira Cartela
-                    </Button>
-                  </div>
-                )}
+              <CardContent className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Rodadas Ativas:</span>
+                  <span className="text-white">{activeRounds?.length || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Pode Participar:</span>
+                  <span className={canJoinRounds ? "text-green-400" : "text-red-400"}>
+                    {canJoinRounds ? "Sim" : "Não"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">É Operador:</span>
+                  <span className={isOperator ? "text-green-400" : "text-red-400"}>
+                    {isLoadingOperator ? "Verificando..." : (isOperator ? "Sim" : "Não")}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Modal State:</span>
+                  <span className="text-white">{showCreateRoundModal ? "Aberto" : "Fechado"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">isCreating:</span>
+                  <span className={isCreating ? "text-yellow-400" : "text-white"}>
+                    {isCreating ? "Sim" : "Não"}
+                  </span>
+                </div>
               </CardContent>
-            </Card> */}
+            </Card>
           </div>
         </div>
       </main>
@@ -547,6 +583,18 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
         <CreateCardModal 
           onClose={() => setShowCreateModal(false)} 
           onCreateCard={handleCreateCard} 
+        />
+      )}
+
+      {/* ✅ CORREÇÃO 3: Modal de Criar Rodada com debug */}
+      {showCreateRoundModal && (
+        <CreateRoundModal
+          onClose={() => {
+            console.log('🎯 Fechando modal de criação de rodada...');
+            setShowCreateRoundModal(false);
+          }}
+          onCreateRound={handleCreateRound}
+          isCreating={isCreating}
         />
       )}
     </div>
