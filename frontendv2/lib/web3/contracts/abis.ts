@@ -1,5 +1,5 @@
 // ABIs gerados automaticamente do Foundry - não editar manualmente
-// Gerado em: 2025-06-07T15:17:55.699Z
+// Gerado em: 2025-06-07T17:05:28.587Z
 // Fonte: contracts/out/
 
 export const CARTELA_ABI = [
@@ -770,6 +770,19 @@ export const BINGO_ABI = [
         "internalType": "address"
       }
     ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getTotalRodadas",
+    "inputs": [],
     "outputs": [
       {
         "name": "",

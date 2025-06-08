@@ -223,9 +223,14 @@ export function useBingoContract() {
   }
 }
 
-// ========================================
-// HOOKS PARA LEITURA DE DADOS
-// ========================================
+export function useTotalRodadas() {
+    const { data, isLoading, refetch } = useReadContract({
+        ...bingoContractConfig,
+        functionName: 'getTotalRodadas',
+    });
+    return { totalRodadas: data as bigint | undefined, isLoading, refetch };
+}
+
 // Hook para ler dados da rodada com TODOS os campos
 export function useRodadaData(rodadaId?: bigint) {
   const { data: rodadaRaw } = useReadContract({

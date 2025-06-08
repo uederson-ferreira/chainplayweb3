@@ -461,6 +461,10 @@ contract BingoGameContract is VRFConsumerBaseV2 {
         return rodadas[_rodadaId].listaCartelasParticipantes;
     }
 
+    function getTotalRodadas() external view returns (uint256) {
+        return _proximaRodadaId;
+    }
+
     function verificarTimeoutRodada(uint256 _rodadaId) 
         external 
         view 
