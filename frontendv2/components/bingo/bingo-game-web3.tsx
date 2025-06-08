@@ -472,7 +472,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
             <WalletConnect />
             <GameStats userCards={userCards} activeRound={currentRound} />
             
-            {/* Informações Técnicas */}
+            {/* Informações Técnicas
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -537,7 +537,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                   </div>
                 )}
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
         </div>
       </main>
