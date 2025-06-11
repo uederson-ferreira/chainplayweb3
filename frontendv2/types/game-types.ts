@@ -33,14 +33,7 @@ export interface ContractRoundParams {
   padroesVitoria: boolean[]; // array de 4 booleans
 }
 
-// Estados de rodada
-export enum EstadoRodada {
-  INATIVA = 0,
-  ABERTA = 1,
-  SORTEANDO = 2,
-  FINALIZADA = 3,
-  CANCELADA = 4
-}
+
 
 // Tipo para rodadas ativas
 export interface ActiveRound {
@@ -132,14 +125,41 @@ export class GameTypeConverter {
   }
 }
 
+
+
+
+
+
+
+// types/game-types.ts - Tipos e constantes centralizadas do jogo
+
+// ========================================
+// ENUMS E CONSTANTES
+// ========================================
+
+export enum EstadoRodada {
+  INATIVA = 0,
+  ABERTA = 1,
+  SORTEANDO = 2,
+  FINALIZADA = 3,
+  CANCELADA = 4
+}
+
+export enum PadraoVitoria {
+  LINHA = 0,
+  COLUNA = 1,
+  DIAGONAL = 2,
+  CARTELA_COMPLETA = 3
+}
+
 // Constantes do jogo
 export const GAME_CONSTANTS = {
   MIN_NUMERO_MAXIMO: 10,
   MAX_NUMERO_MAXIMO: 99,
   MIN_TAXA_ENTRADA: "0.001", // ETH
-  MAX_TAXA_ENTRADA: "10.0", // ETH
-  MIN_TIMEOUT_HORAS: 0.5,
-  MAX_TIMEOUT_HORAS: 24,
+  MAX_TAXA_ENTRADA: "1", // ETH
+  MIN_TIMEOUT_HORAS: 0.5, // 30 minutos
+  MAX_TIMEOUT_HORAS: 24, // 24 horas
   DEFAULT_PADROES_VITORIA: {
     linha: true,
     coluna: true,
@@ -147,3 +167,111 @@ export const GAME_CONSTANTS = {
     cartelaCompleta: false
   }
 } as const;
+
+// ========================================
+// TIPOS DE DADOS
+// ========================================
+
+// Tipo para rodada ativa (blockchain)
+export interface ActiveRound {
+  id: bigint;
+  estado: EstadoRodada;
+  numeroMaximo: number;
+  taxaEntrada: bigint;
+  premioTotal: bigint;
+  timestampInicio: bigint;
+  timeoutRodada: bigint;
+  numerosSorteados: number[];
+  participantes: number;
+}
+
+// Tipo para estatísticas do jogo
+export interface GameStats {
+  totalRounds: number;
+  activeRounds: number;
+  totalParticipants: number;
+  totalPrize: bigint;
+}
+
+// Tipo para padrões de vitória
+export interface PadroesVitoria {
+  linha: boolean;
+  coluna: boolean;
+  diagonal: boolean;
+  cartelaCompleta: boolean;
+}
+
+// Tipo para configuração de rodada
+export interface RoundConfig {
+  numeroMaximo: number;
+  taxaEntrada: string; // em ETH
+  timeoutHoras: number;
+  padroesVitoria: PadroesVitoria;
+}
+
+// ========================================
+// MAPEAMENTO DE ERROS CUSTOMIZADOS
+// ========================================
+
+export const CONTRACT_ERRORS = {
+  '0x1f6a65b6': 'OnlyOperatorCanFulfill - Apenas operadores podem executar esta ação',
+  '0x': 'Erro desconhecido do contrato'
+} as const;
+
+// ========================================
+// FUNÇÕES UTILITÁRIAS
+// ========================================
+
+export function getEstadoTexto(estado: number): string {
+  switch (estado) {
+    case EstadoRodada.INATIVA:
+      return "Inativa";
+    case EstadoRodada.ABERTA:
+      return "Aberta";
+    case EstadoRodada.SORTEANDO:
+      return "Sorteando";
+    case EstadoRodada.FINALIZADA:
+      return "Finalizada";
+    case EstadoRodada.CANCELADA:
+      return "Cancelada";
+    default:
+      return "Desconhecido";
+  }
+}
+
+export function getEstadoCor(estado: number): string {
+  switch (estado) {
+    case EstadoRodada.ABERTA:
+      return "bg-green-500/20 text-green-400 border-green-500/30";
+    case EstadoRodada.SORTEANDO:
+      return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+    case EstadoRodada.FINALIZADA:
+      return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+    case EstadoRodada.CANCELADA:
+      return "bg-red-500/20 text-red-400 border-red-500/30";
+    default:
+      return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+  }
+}
+
+export function decodeContractError(errorMessage: string): string {
+  // Procurar por erros customizados conhecidos
+  for (const [code, description] of Object.entries(CONTRACT_ERRORS)) {
+    if (errorMessage.includes(code)) {
+      return description;
+    }
+  }
+  
+  // Outros erros comuns
+  if (errorMessage.includes('user rejected') || errorMessage.includes('User denied')) {
+    return 'Transação cancelada pelo usuário';
+  }
+  if (errorMessage.includes('insufficient funds')) {
+    return 'ETH insuficiente para pagar o gas';
+  }
+  if (errorMessage.includes('execution reverted')) {
+    return 'Transação rejeitada pelo contrato';
+  }
+  
+  return errorMessage;
+}

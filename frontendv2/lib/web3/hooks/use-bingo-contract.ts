@@ -10,7 +10,6 @@ import {
 import { parseEther } from "viem";
 import { BINGO_ABI } from "../contracts/abis";
 import { CONTRACTS } from "../config";
-import deployment from "@/lib/web3/contracts/deployment.json";
 
 const bingoContractConfig = {
   address: CONTRACTS.BINGO,

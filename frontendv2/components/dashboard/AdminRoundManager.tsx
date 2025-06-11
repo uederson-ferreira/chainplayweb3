@@ -7,13 +7,25 @@ import { useWriteContract } from "wagmi";
 import { parseEther } from "viem";
 
 import { BINGO_ABI } from "@/lib/web3/contracts/abis";
-import deployment from "@/lib/web3/contracts/deployment.json";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { CONTRACTS } from "@/lib/web3/config";
+
+import { useBingoContract, useIsOperator } from "@/lib/web3/hooks/use-bingo-contract"
+
+// ===== ADICIONAR IMPORT DO publicClient =====
+import { createPublicClient, http } from "viem"
+import { localChain } from "@/lib/web3/config"
+
+// ===== CRIAR publicClient =====
+const publicClient = createPublicClient({
+  chain: localChain,
+  transport: http(process.env.NEXT_PUBLIC_RPC_URL || "http://127.0.0.1:8545"), // ✅ USAR ENV
+})
 
 const bingoContractConfig = {
   address: CONTRACTS.BINGO,

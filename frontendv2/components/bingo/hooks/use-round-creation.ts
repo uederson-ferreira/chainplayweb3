@@ -6,7 +6,6 @@ import { useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { useToast } from "@/hooks/use-toast";
 import { BINGO_ABI } from "@/lib/web3/contracts/abis";
 import { CONTRACTS } from "@/lib/web3/config";
-import deployment from "@/lib/web3/contracts/deployment.json";
 import {
   RoundCreationParams,
   GameTypeConverter,

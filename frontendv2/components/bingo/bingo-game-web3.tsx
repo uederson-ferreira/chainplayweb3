@@ -19,8 +19,6 @@ import CreateCardModal from "./create-card-modal";
 import GameStats from "./game-stats";
 import { useToast } from "@/hooks/use-toast";
 import { BINGO_ABI } from "@/lib/web3/contracts/abis";
-// ❌ REMOVIDO: import deployment from "@/lib/web3/contracts/deployment.json";
-// ✅ ADICIONADO: Import do config que usa .env
 import { CONTRACTS } from "@/lib/web3/config";
 import { useRoundCreation } from "./hooks/use-round-creation";
 import { useActiveRounds } from "@/lib/web3/hooks/use-active-rounds";

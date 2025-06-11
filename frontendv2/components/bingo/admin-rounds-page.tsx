@@ -15,7 +15,7 @@ import { ArrowLeft, Plus, Zap, Users, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 import { BINGO_ABI } from "@/lib/web3/contracts/abis";
-import deployment from "@/lib/web3/contracts/deployment.json";
+
 import {
   useBingoContract,
   useIsOperator,
