@@ -19,13 +19,22 @@ import CreateCardModal from "./create-card-modal";
 import GameStats from "./game-stats";
 import { useToast } from "@/hooks/use-toast";
 import { BINGO_ABI } from "@/lib/web3/contracts/abis";
-import deployment from "@/lib/web3/contracts/deployment.json";
-//import CreateRoundModal from "./CreateRoundModal";
+// ❌ REMOVIDO: import deployment from "@/lib/web3/contracts/deployment.json";
+// ✅ ADICIONADO: Import do config que usa .env
+import { CONTRACTS } from "@/lib/web3/config";
 import { useRoundCreation } from "./hooks/use-round-creation";
 import { useActiveRounds } from "@/lib/web3/hooks/use-active-rounds";
 import { useBingoActions } from './hooks/useBingoActions';
 import { useEnhancedActiveRounds } from "@/lib/web3/hooks/use-enhanced-active-rounds";
 import CreateRoundModal, { RichRoundCreationParams } from "./CreateRoundModal";
+
+// ===== VALIDAÇÃO CRÍTICA: .env OBRIGATÓRIO =====
+if (!CONTRACTS.BINGO || !CONTRACTS.CARTELA) {
+  console.error('❌ CONTRATOS NÃO CONFIGURADOS NO .env:');
+  console.error('   BINGO:', CONTRACTS.BINGO);
+  console.error('   CARTELA:', CONTRACTS.CARTELA);
+  throw new Error('Configure NEXT_PUBLIC_BINGO_CONTRACT_ADDRESS e NEXT_PUBLIC_CARTELA_CONTRACT_ADDRESS no .env.local');
+}
 
 // ===== TIPOS UNIFICADOS =====
 interface UnifiedRoundCreationParams {
@@ -39,6 +48,7 @@ interface UnifiedRoundCreationParams {
     cartelaCompleta: boolean;
   };
 }
+
 interface BingoGameWeb3Props {
   user: User;
 }
@@ -54,7 +64,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
   const { userCards, isLoading: isLoadingCards, refetchUserCards } = useUserCartelasCompletas();
   const { criarCartela, isPending: isCreatingCard, isConfirmed: isCartelaConfirmed, precoBase } = useCartelaContract();
   
-  // ✅ HOOKS CORRIGIDOS
+  // ✅ HOOKS CORRIGIDOS (agora usam dados reais)
   const {
     activeRounds, 
     enhancedRounds,
@@ -70,9 +80,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     stats
   } = useEnhancedActiveRounds();
 
-  // ✅ CORREÇÃO 1: Remover currentStep e progress que não existem
   const { createRound, isCreating } = useRoundCreation();
-
   const bingoActions = useBingoActions();
   const currentRound = getCurrentRound();
 
@@ -85,16 +93,20 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
   // ✅ VARIÁVEIS COMPUTADAS
   const isCorrectNetwork = chainId === 1;
   
-  // ✅ LOGS DEBUG
-  console.log('🎯 Estado atual do jogo:', {
+  // ✅ LOGS DEBUG MELHORADOS (mostram origem dos dados)
+  console.log('🎯 ESTADO ATUAL DO JOGO (DADOS REAIS):', {
     isConnected,
     isCorrectNetwork,
-    hasActiveRounds,
-    activeRoundsCount: activeRounds.length,
-    currentRoundId: currentRoundId?.toString(),
-    canJoinRounds,
+    hasActiveRounds, // ← Agora é REAL da blockchain
+    activeRoundsCount: activeRounds.length, // ← REAL
+    currentRoundId: currentRoundId?.toString(), // ← REAL
+    canJoinRounds, // ← REAL
     userCardsCount: userCards.length,
-    showCreateRoundModal // Debug do modal
+    roundsError, // ← Mostra erros reais
+    contractAddresses: {
+      bingo: CONTRACTS.BINGO, // ← Do .env
+      cartela: CONTRACTS.CARTELA // ← Do .env
+    }
   });
 
   // ✅ EFEITOS (mantidos)
@@ -102,7 +114,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     if (isConfirmed) {
       toast({ 
         title: "✅ Transação Confirmada!", 
-        description: "Recarregando dados..." 
+        description: "Recarregando dados da blockchain..." 
       });
       
       setTimeout(() => {
@@ -123,7 +135,18 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   }, [isCartelaConfirmed, refetchUserCards]);
 
-  // ✅ FUNÇÕES DE MANIPULAÇÃO (handlers)
+  // ✅ VALIDAÇÃO ADICIONAL: Verificar se .env está configurado
+  useEffect(() => {
+    if (isConnected && (!CONTRACTS.BINGO || !CONTRACTS.CARTELA)) {
+      toast({
+        title: "❌ Configuração Incompleta",
+        description: "Configure os endereços dos contratos no .env.local",
+        variant: "destructive"
+      });
+    }
+  }, [isConnected]);
+
+  // ✅ FUNÇÕES DE MANIPULAÇÃO (handlers) CORRIGIDAS
   const handleCreateCard = async (rows: number, columns: number) => {
     if (!isConnected || !isCorrectNetwork) {
       toast({
@@ -134,11 +157,21 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
       return;
     }
 
+    // ✅ VALIDAÇÃO: Verificar se contrato está configurado
+    if (!CONTRACTS.CARTELA) {
+      toast({
+        title: "Erro de configuração",
+        description: "Endereço do contrato de cartela não configurado no .env",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       await criarCartela(rows, columns);
       toast({
         title: "Criando cartela...",
-        description: `Cartela ${rows}×${columns} sendo criada.`,
+        description: `Cartela ${rows}×${columns} sendo criada na blockchain.`,
       });
     } catch (error: any) {
       toast({
@@ -153,7 +186,17 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     if (!currentRound) {
       toast({
         title: "Nenhuma rodada ativa",
-        description: "Aguarde uma rodada ser criada",
+        description: "Aguarde uma rodada ser criada na blockchain",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // ✅ VALIDAÇÃO: Verificar se contrato está configurado
+    if (!CONTRACTS.BINGO) {
+      toast({
+        title: "Erro de configuração",
+        description: "Endereço do contrato de bingo não configurado no .env",
         variant: "destructive"
       });
       return;
@@ -162,8 +205,9 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     try {
       const taxaEntrada = currentRound.taxaEntrada;
       
+      // ✅ CORRIGIDO: Usar CONTRACTS.BINGO do .env
       writeContract({
-        address: deployment.bingoContract as `0x${string}`,
+        address: CONTRACTS.BINGO, // ← USAR .ENV em vez de deployment
         abi: BINGO_ABI,
         functionName: 'participar',
         args: [currentRound.id, BigInt(cardId)],
@@ -173,7 +217,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
       setSelectedCard(cardId);
       toast({
         title: "Participando da rodada...",
-        description: `Taxa: ${formatEther(taxaEntrada)} ETH`,
+        description: `Taxa: ${formatEther(taxaEntrada)} ETH | Contrato: ${CONTRACTS.BINGO.slice(0, 8)}...`,
       });
     } catch (error: any) {
       toast({
@@ -185,11 +229,29 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
   };
 
   const handleDrawNumber = async () => {
-    if (!currentRound) return;
+    if (!currentRound) {
+      toast({
+        title: "Nenhuma rodada ativa",
+        description: "Não há rodadas ativas na blockchain para sortear números",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // ✅ VALIDAÇÃO: Verificar se contrato está configurado
+    if (!CONTRACTS.BINGO) {
+      toast({
+        title: "Erro de configuração",
+        description: "Endereço do contrato de bingo não configurado no .env",
+        variant: "destructive"
+      });
+      return;
+    }
 
     try {
+      // ✅ CORRIGIDO: Usar CONTRACTS.BINGO do .env
       writeContract({
-        address: deployment.bingoContract as `0x${string}`,
+        address: CONTRACTS.BINGO, // ← USAR .ENV em vez de deployment
         abi: BINGO_ABI,
         functionName: 'sortearNumero',
         args: [currentRound.id],
@@ -197,7 +259,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
 
       toast({
         title: "Sorteando número...",
-        description: "Solicitação enviada via Chainlink VRF",
+        description: `Solicitação VRF enviada para rodada ${currentRound.id.toString()}`,
       });
     } catch (error: any) {
       toast({
@@ -208,25 +270,26 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     }
   };
 
-
   const handleCreateRound = async (params: RichRoundCreationParams) => {
     try {
       console.log('🎯 Recebendo dados ricos do modal:', params);
       
-      // Futuramente, você pode querer passar `params` inteiros para o hook.
-      // Por agora, vamos extrair apenas o que o hook `useRoundCreation` precisa.
       const paramsForHook: UnifiedRoundCreationParams = {
         numeroMaximo: params.numeroMaximo,
         taxaEntrada: params.taxaEntrada,
-        timeoutHoras: params.duracaoHoras, // Mapeando 'duracaoHoras' para 'timeoutHoras'
+        timeoutHoras: params.duracaoHoras,
         padroesVitoria: params.padroesVitoria
       };
       
       console.log('🔄 Convertendo para o formato do hook:', paramsForHook);
+      console.log('📍 Usando contrato do .env:', CONTRACTS.BINGO);
       
       await createRound(paramsForHook);
       
-      toast({ title: "Sucesso!", description: "Sua rodada está sendo criada na blockchain." });
+      toast({ 
+        title: "Sucesso!", 
+        description: `Rodada sendo criada no contrato ${CONTRACTS.BINGO.slice(0, 8)}...` 
+      });
       setShowCreateRoundModal(false);
       
       setTimeout(() => refetchRounds(), 3000);
@@ -235,43 +298,12 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
       console.error('❌ Erro na criação da rodada:', error);
       toast({ 
         title: "Erro ao criar rodada", 
-        description: error.message || "Ocorreu um erro, tente novamente.",
+        description: error.message || "Verifique se você é operador e .env está configurado",
         variant: "destructive"
       });
     }
   };
-  // // ✅ CORREÇÃO 2: Handler que converte tipos corretamente
-  // const handleCreateRound = async (modalParams: any) => {
-  //   try {
-  //     console.log('🎯 Criando rodada personalizada:', modalParams);
-      
-  //     // ✅ CONVERSÃO DE TIPOS: Modal -> Hook
-  //     const unifiedParams: UnifiedRoundCreationParams = {
-  //       numeroMaximo: modalParams.numeroMaximo,
-  //       taxaEntrada: modalParams.taxaEntrada,
-  //       timeoutHoras: modalParams.timeoutHoras || modalParams.timeout || 1, // ✅ Fallback
-  //       padroesVitoria: modalParams.padroesVitoria
-  //     };
-      
-  //     console.log('🔄 Parâmetros convertidos:', unifiedParams);
-      
-  //     await createRound(unifiedParams);
-      
-  //     // Fechar modal em caso de sucesso
-  //     setShowCreateRoundModal(false);
-      
-  //     // Recarregar dados após 3 segundos
-  //     setTimeout(() => {
-  //       refetchRounds();
-  //     }, 3000);
-      
-  //   } catch (error) {
-  //     console.error('❌ Erro na criação da rodada:', error);
-  //     // Modal permanece aberto para mostrar erro
-  //   }
-  // };
 
-  // ✅ HANDLER PARA ABRIR MODAL
   const handleStartRound = () => {
     if (!isOperator) {
       toast({
@@ -281,11 +313,23 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
       });
       return;
     }
+
+    // ✅ VALIDAÇÃO: Verificar se contrato está configurado
+    if (!CONTRACTS.BINGO) {
+      toast({
+        title: "Erro de configuração",
+        description: "Configure NEXT_PUBLIC_BINGO_CONTRACT_ADDRESS no .env.local",
+        variant: "destructive"
+      });
+      return;
+    }
+
     console.log('🎯 Abrindo modal de criação de rodada...');
+    console.log('📍 Contrato alvo (.env):', CONTRACTS.BINGO);
     setShowCreateRoundModal(true);
   };
 
-  // ✅ RENDERIZAÇÃO (sem modal por enquanto)
+  // ✅ RENDERIZAÇÃO COM VALIDAÇÃO DE .env
   if (!isConnected) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800">
@@ -308,6 +352,17 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
             <h2 className="text-xl font-bold text-white mb-2">Carteira Necessária</h2>
             <p className="text-slate-400 mb-4">Conecte sua carteira para jogar</p>
             <WalletConnect />
+            
+            {/* ✅ NOVO: Info de configuração */}
+            <div className="mt-6 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+              <p className="text-xs text-slate-400 mb-2">Contratos configurados:</p>
+              <p className="text-xs text-slate-300 font-mono break-all">
+                Bingo: {CONTRACTS.BINGO || '❌ Não configurado'}
+              </p>
+              <p className="text-xs text-slate-300 font-mono break-all">
+                Cartela: {CONTRACTS.CARTELA || '❌ Não configurado'}
+              </p>
+            </div>
           </div>
         </main>
       </div>
@@ -359,6 +414,21 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* ✅ NOVO: Aviso de configuração incompleta */}
+        {(!CONTRACTS.BINGO || !CONTRACTS.CARTELA) && (
+          <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertCircle className="h-4 w-4" />
+              <span className="font-medium">Configuração Incompleta</span>
+            </div>
+            <p className="text-sm mb-2">Configure os endereços dos contratos no .env.local:</p>
+            <div className="text-xs font-mono bg-black/20 p-2 rounded">
+              NEXT_PUBLIC_BINGO_CONTRACT_ADDRESS={CONTRACTS.BINGO || 'NÃO_CONFIGURADO'}<br/>
+              NEXT_PUBLIC_CARTELA_CONTRACT_ADDRESS={CONTRACTS.CARTELA || 'NÃO_CONFIGURADO'}
+            </div>
+          </div>
+        )}
+
         {/* Aviso de rede incorreta */}
         {!isCorrectNetwork && (
           <div className="mb-6 p-4 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200">
@@ -375,12 +445,12 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Área Principal */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Status das Rodadas */}
+            {/* Status das Rodadas - DADOS REAIS */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-white">
-                    Status das Rodadas
+                    Status das Rodadas (BLOCKCHAIN REAL)
                   </CardTitle>
                   <div className="flex gap-2">
                     <Button
@@ -392,8 +462,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                       <RefreshCw className={`h-4 w-4 mr-1 ${isLoadingRounds ? 'animate-spin' : ''}`} />
                       Atualizar
                     </Button>
-                    {/* ✅ BOTÃO PREPARADO PARA MODAL */}
-                    {isOperator && (
+                    {isOperator && CONTRACTS.BINGO && (
                       <Button 
                         size="sm" 
                         className="bg-gradient-to-r from-cyan-500 to-purple-500"
@@ -408,19 +477,24 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                 </div>
               </CardHeader>
               <CardContent>
-                {/* Resto do conteúdo de rodadas */}
                 {isLoadingRounds ? (
                   <div className="text-center py-4">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-400 mx-auto mb-2"></div>
-                    <p className="text-slate-400 text-sm">Buscando rodadas...</p>
+                    <p className="text-slate-400 text-sm">Buscando rodadas reais da blockchain...</p>
                   </div>
                 ) : roundsError ? (
                   <div className="text-center py-4">
                     <AlertCircle className="h-6 w-6 text-red-400 mx-auto mb-2" />
                     <p className="text-red-400 text-sm">Erro: {roundsError}</p>
+                    <p className="text-xs text-slate-500 mt-2">
+                      Contrato: {CONTRACTS.BINGO?.slice(0, 8)}...
+                    </p>
                   </div>
                 ) : hasActiveRounds ? (
                   <div className="space-y-3">
+                    <p className="text-green-400 text-sm">
+                      ✅ {activeRounds.length} rodada(s) REAL(is) encontrada(s) na blockchain
+                    </p>
                     {activeRounds.map((round: any) => (
                       <div key={round.id.toString()} className="p-4 bg-slate-700/50 rounded-lg border border-slate-600">
                         <div className="flex items-center justify-between mb-2">
@@ -491,16 +565,23 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                 ) : (
                   <div className="text-center py-8">
                     <AlertCircle className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                    <p className="text-slate-400 mb-4">Nenhuma rodada ativa encontrada</p>
-                    {isOperator ? (
+                    <p className="text-slate-400 mb-4">
+                      Nenhuma rodada REAL encontrada na blockchain
+                    </p>
+                    <p className="text-xs text-slate-500 mb-4">
+                      Contrato verificado: {CONTRACTS.BINGO?.slice(0, 8)}...
+                    </p>
+                    {isOperator && CONTRACTS.BINGO ? (
                       <Button 
                         className="bg-gradient-to-r from-cyan-500 to-purple-500"
                         onClick={handleStartRound}
                         disabled={isPending || isCreating}
                       >
                         <Plus className="h-4 w-4 mr-2" />
-                        {(isPending || isCreating) ? "Criando..." : "Criar Primeira Rodada"}
+                        {(isPending || isCreating) ? "Criando..." : "Criar Primeira Rodada REAL"}
                       </Button>
+                    ) : !CONTRACTS.BINGO ? (
+                      <p className="text-slate-500 text-sm">Configure .env para criar rodadas</p>
                     ) : (
                       <p className="text-slate-500 text-sm">Aguarde um operador criar uma rodada</p>
                     )}
@@ -509,7 +590,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
               </CardContent>
             </Card>
 
-            {/* Cartelas do Usuário */}
+            {/* Cartelas do Usuário - resto igual... */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -519,7 +600,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                   <Button
                     onClick={() => setShowCreateModal(true)}
                     size="sm"
-                    disabled={isCreatingCard || !isCorrectNetwork}
+                    disabled={isCreatingCard || !isCorrectNetwork || !CONTRACTS.CARTELA}
                     className="bg-gradient-to-r from-cyan-500 to-purple-500"
                   >
                     <Plus className="h-4 w-4 mr-2" />
@@ -556,7 +637,7 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                     <p className="text-slate-400 mb-4">Você ainda não tem cartelas</p>
                     <Button
                       onClick={() => setShowCreateModal(true)}
-                      disabled={isCreatingCard || !isCorrectNetwork}
+                      disabled={isCreatingCard || !isCorrectNetwork || !CONTRACTS.CARTELA}
                       className="bg-gradient-to-r from-cyan-500 to-purple-500"
                     >
                       <Plus className="h-4 w-4 mr-2" />
@@ -573,11 +654,24 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
             <WalletConnect />
             <GameStats userCards={userCards} activeRound={currentRound} />
             
+            {/* ✅ DEBUG INFO MELHORADO */}
             <Card className="bg-slate-800/50 border-slate-700">
               <CardHeader>
-                <CardTitle className="text-white">Debug Info</CardTitle>
+                <CardTitle className="text-white">Debug Info (DADOS REAIS)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Fonte dos Dados:</span>
+                  <span className="text-green-400">Blockchain (.env)</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Bingo Contract:</span>
+                  <span className="text-white font-mono">{CONTRACTS.BINGO?.slice(0, 10)}...</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Cartela Contract:</span>
+                  <span className="text-white font-mono">{CONTRACTS.CARTELA?.slice(0, 10)}...</span>
+                </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Rodadas Ativas:</span>
                   <span className="text-white">{activeRounds?.length || 0}</span>
@@ -595,13 +689,9 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Modal State:</span>
-                  <span className="text-white">{showCreateRoundModal ? "Aberto" : "Fechado"}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">isCreating:</span>
-                  <span className={isCreating ? "text-yellow-400" : "text-white"}>
-                    {isCreating ? "Sim" : "Não"}
+                  <span className="text-slate-400">Error State:</span>
+                  <span className={roundsError ? "text-red-400" : "text-green-400"}>
+                    {roundsError ? "Sim" : "Limpo"}
                   </span>
                 </div>
               </CardContent>
@@ -618,15 +708,12 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
         />
       )}
 
-      {/* ✅ RENDERIZAR O MODAL CRIAR RODADA */}
+      {/* Modal Criar Rodada */}
       {showCreateRoundModal && (
         <CreateRoundModal
           onClose={() => setShowCreateRoundModal(false)}
           onCreateRound={handleCreateRound}
           isCreating={isCreating}
-          // Você pode passar `currentStep` e `progress` do seu hook se os tiver
-          // currentStep={seuHook.currentStep} 
-          // progress={seuHook.progress}
         />
       )}
     </div>

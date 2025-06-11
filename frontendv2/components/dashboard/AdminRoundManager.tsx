@@ -16,21 +16,29 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 const bingoContractConfig = {
-  address: deployment.bingoContract as `0x${string}`,
+  address: CONTRACTS.BINGO,
   abi: BINGO_ABI,
 };
 
 export function AdminRoundManager() {
   const { address, isConnected } = useAccount();
   const { toast } = useToast();
-  
-  const { data: hash, isPending, writeContract } = useWriteContract({
+
+  const {
+    data: hash,
+    isPending,
+    writeContract,
+  } = useWriteContract({
     mutation: {
       onSuccess: (data) => {
         toast({ title: "🎉 Transação Enviada!", description: `Hash: ${data}` });
       },
       onError: (error) => {
-        toast({ title: "❌ Erro na Transação", description: error.message, variant: "destructive" });
+        toast({
+          title: "❌ Erro na Transação",
+          description: error.message,
+          variant: "destructive",
+        });
       },
     },
   });
@@ -42,7 +50,7 @@ export function AdminRoundManager() {
     timeoutHours: "1",
     winPatterns: [true, true, true, false], // [Linha, Coluna, Diagonal, Cartela]
   });
-  
+
   const handleCreateRound = () => {
     if (!isConnected) {
       toast({ title: "❌ Carteira não conectada", variant: "destructive" });
@@ -50,7 +58,7 @@ export function AdminRoundManager() {
     }
 
     const [linha, coluna, diagonal, cartela] = roundParams.winPatterns;
-    
+
     writeContract({
       ...bingoContractConfig,
       functionName: "iniciarRodada",
@@ -62,16 +70,16 @@ export function AdminRoundManager() {
       ],
     });
   };
-  
+
   // (Opcional) Lógica para sortear número
   const [roundIdToSort, setRoundIdToSort] = useState("0");
   const handleDrawNumber = () => {
     writeContract({
-        ...bingoContractConfig,
-        functionName: "sortearNumero",
-        args: [BigInt(roundIdToSort)]
+      ...bingoContractConfig,
+      functionName: "sortearNumero",
+      args: [BigInt(roundIdToSort)],
     });
-  }
+  };
 
   return (
     <Card>
@@ -81,26 +89,42 @@ export function AdminRoundManager() {
       <CardContent className="space-y-6">
         {/* Formulário para criar rodada */}
         <div className="space-y-4 p-4 border rounded-lg">
-            <h3 className="font-semibold">Nova Rodada</h3>
-            <div>
-                <Label>Taxa de Entrada (ETH)</Label>
-                <Input value={roundParams.entryFee} onChange={e => setRoundParams(p => ({...p, entryFee: e.target.value}))} />
-            </div>
-            <Button onClick={handleCreateRound} disabled={isPending} className="w-full">
-                {isPending ? "Criando..." : "🚀 Iniciar Nova Rodada"}
-            </Button>
+          <h3 className="font-semibold">Nova Rodada</h3>
+          <div>
+            <Label>Taxa de Entrada (ETH)</Label>
+            <Input
+              value={roundParams.entryFee}
+              onChange={(e) =>
+                setRoundParams((p) => ({ ...p, entryFee: e.target.value }))
+              }
+            />
+          </div>
+          <Button
+            onClick={handleCreateRound}
+            disabled={isPending}
+            className="w-full"
+          >
+            {isPending ? "Criando..." : "🚀 Iniciar Nova Rodada"}
+          </Button>
         </div>
-        
+
         {/* Formulário para sortear número */}
         <div className="space-y-4 p-4 border rounded-lg">
-            <h3 className="font-semibold">Sortear Número</h3>
-            <div>
-                <Label>ID da Rodada</Label>
-                <Input value={roundIdToSort} onChange={e => setRoundIdToSort(e.target.value)} />
-            </div>
-            <Button onClick={handleDrawNumber} disabled={isPending} className="w-full">
-                {isPending ? "Sorteando..." : "🎲 Sortear Número"}
-            </Button>
+          <h3 className="font-semibold">Sortear Número</h3>
+          <div>
+            <Label>ID da Rodada</Label>
+            <Input
+              value={roundIdToSort}
+              onChange={(e) => setRoundIdToSort(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={handleDrawNumber}
+            disabled={isPending}
+            className="w-full"
+          >
+            {isPending ? "Sorteando..." : "🎲 Sortear Número"}
+          </Button>
         </div>
 
         {hash && <p className="text-xs break-all">Último Hash: {hash}</p>}

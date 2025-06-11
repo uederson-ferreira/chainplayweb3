@@ -1,45 +1,49 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useAccount, useReadContract } from "wagmi"
-import { parseEther, formatEther } from "viem"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { useAccount, useReadContract } from "wagmi";
+import { parseEther, formatEther } from "viem";
+import Link from "next/link";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Plus, Zap, Users, AlertCircle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { ArrowLeft, Plus, Zap, Users, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-import { BINGO_ABI } from "@/lib/web3/contracts/abis"
-import deployment from "@/lib/web3/contracts/deployment.json"
-import { useBingoContract, useIsOperator } from "@/lib/web3/hooks/use-bingo-contract"
+import { BINGO_ABI } from "@/lib/web3/contracts/abis";
+import deployment from "@/lib/web3/contracts/deployment.json";
+import {
+  useBingoContract,
+  useIsOperator,
+} from "@/lib/web3/hooks/use-bingo-contract";
 
 // ===== ADICIONAR IMPORT DO publicClient =====
-import { createPublicClient, http } from "viem"
-import { localChain } from "@/lib/web3/config"
+import { createPublicClient, http } from "viem";
+import { CONTRACTS, localChain } from "@/lib/web3/config";
 
 // ===== CRIAR publicClient =====
 const publicClient = createPublicClient({
   chain: localChain,
-  transport: http("http://127.0.0.1:8545"),
-})
+  transport: process.env.NEXT_PUBLIC_RPC_URL,
+});
 
 const bingoContractConfig = {
-  address: deployment.bingoContract as `0x${string}`,
+  address: CONTRACTS.BINGO,
   abi: BINGO_ABI,
-}
+};
 
 export default function AdminRoundsPage() {
-  const { address, isConnected } = useAccount()
-  const { toast } = useToast()
-  const { isOperator, isLoading: isLoadingOperator } = useIsOperator()
-  
+  const { address, isConnected } = useAccount();
+  const { toast } = useToast();
+  const { isOperator, isLoading: isLoadingOperator } = useIsOperator();
+
   // Hook customizado para ações do Bingo
-  const { iniciarRodada, hash, isPending, isConfirming, isConfirmed, error } = useBingoContract()
+  const { iniciarRodada, hash, isPending, isConfirming, isConfirmed, error } =
+    useBingoContract();
 
   // Estados do formulário
   const [formData, setFormData] = useState({
@@ -50,46 +54,47 @@ export default function AdminRoundsPage() {
       linha: true,
       coluna: true,
       diagonal: true,
-      cartelaCompleta: false
-    }
-  })
+      cartelaCompleta: false,
+    },
+  });
 
   // Estados para buscar rodadas
-  const [activeRounds, setActiveRounds] = useState<any[]>([])
-  const [isLoadingRounds, setIsLoadingRounds] = useState(true)
+  const [activeRounds, setActiveRounds] = useState<any[]>([]);
+  const [isLoadingRounds, setIsLoadingRounds] = useState(true);
 
   // Buscar total de rodadas
   const { data: totalRodadas, isLoading: isLoadingTotal } = useReadContract({
     ...bingoContractConfig,
-    functionName: 'getTotalRodadas',
-  })
+    functionName: "getTotalRodadas",
+  });
 
   // Buscar rodadas ativas
   const fetchActiveRounds = async () => {
-    if (!isConnected || !totalRodadas) return
+    if (!isConnected || !totalRodadas) return;
 
-    setIsLoadingRounds(true)
+    setIsLoadingRounds(true);
     try {
-      const total = Number(totalRodadas)
-      console.log('🔍 Total de rodadas:', total)
+      const total = Number(totalRodadas);
+      console.log("🔍 Total de rodadas:", total);
 
       if (total === 0) {
-        setActiveRounds([])
-        setIsLoadingRounds(false)
-        return
+        setActiveRounds([]);
+        setIsLoadingRounds(false);
+        return;
       }
 
       // Buscar dados de todas as rodadas
-      const rounds = []
+      const rounds = [];
       for (let i = 0; i < total; i++) {
         try {
           const roundData = await publicClient.readContract({
             ...bingoContractConfig,
-            functionName: 'rodadas',
+            functionName: "rodadas",
             args: [BigInt(i)],
-          })
+          });
 
-          if (roundData && roundData[1] === 1) { // Estado ABERTA
+          if (roundData && roundData[1] === 1) {
+            // Estado ABERTA
             rounds.push({
               id: roundData[0],
               estado: roundData[1],
@@ -98,48 +103,48 @@ export default function AdminRoundsPage() {
               premioTotal: roundData[7],
               timestampInicio: roundData[8],
               timeoutRodada: roundData[9],
-            })
+            });
           }
         } catch (error) {
-          console.error(`Erro ao buscar rodada ${i}:`, error)
+          console.error(`Erro ao buscar rodada ${i}:`, error);
         }
       }
 
-      console.log('🎯 Rodadas ativas encontradas:', rounds)
-      setActiveRounds(rounds)
+      console.log("🎯 Rodadas ativas encontradas:", rounds);
+      setActiveRounds(rounds);
     } catch (error) {
-      console.error('Erro ao buscar rodadas:', error)
+      console.error("Erro ao buscar rodadas:", error);
       toast({
         title: "Erro ao buscar rodadas",
         description: "Não foi possível carregar as rodadas ativas",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     } finally {
-      setIsLoadingRounds(false)
+      setIsLoadingRounds(false);
     }
-  }
+  };
 
   // Carregar rodadas quando conectar
   useEffect(() => {
     if (isConnected && totalRodadas !== undefined) {
-      fetchActiveRounds()
+      fetchActiveRounds();
     }
-  }, [isConnected, totalRodadas])
+  }, [isConnected, totalRodadas]);
 
   // Monitorar transações confirmadas
   useEffect(() => {
     if (isConfirmed) {
       toast({
         title: "✅ Rodada criada com sucesso!",
-        description: "A nova rodada está ativa para participações"
-      })
-      
+        description: "A nova rodada está ativa para participações",
+      });
+
       // Recarregar rodadas após 3 segundos
       setTimeout(() => {
-        fetchActiveRounds()
-      }, 3000)
+        fetchActiveRounds();
+      }, 3000);
     }
-  }, [isConfirmed])
+  }, [isConfirmed]);
 
   // Criar nova rodada
   const handleCreateRound = async () => {
@@ -147,54 +152,58 @@ export default function AdminRoundsPage() {
       toast({
         title: "Carteira não conectada",
         description: "Conecte sua carteira primeiro",
-        variant: "destructive"
-      })
-      return
+        variant: "destructive",
+      });
+      return;
     }
 
     if (!isOperator) {
       toast({
         title: "Sem permissão",
         description: "Você precisa ser operador para criar rodadas",
-        variant: "destructive"
-      })
-      return
+        variant: "destructive",
+      });
+      return;
     }
 
     try {
-      const numeroMaximo = parseInt(formData.numeroMaximo)
-      const taxaEntrada = parseEther(formData.taxaEntrada)
-      const timeoutRodada = BigInt(parseInt(formData.timeoutHoras) * 3600)
+      const numeroMaximo = parseInt(formData.numeroMaximo);
+      const taxaEntrada = parseEther(formData.taxaEntrada);
+      const timeoutRodada = BigInt(parseInt(formData.timeoutHoras) * 3600);
       const padroesVitoria = [
         formData.padroesVitoria.linha,
         formData.padroesVitoria.coluna,
         formData.padroesVitoria.diagonal,
-        formData.padroesVitoria.cartelaCompleta
-      ]
+        formData.padroesVitoria.cartelaCompleta,
+      ];
 
-      console.log('🚀 Criando rodada com parâmetros:', {
+      console.log("🚀 Criando rodada com parâmetros:", {
         numeroMaximo,
-        taxaEntrada: formData.taxaEntrada + ' ETH',
-        timeoutHoras: formData.timeoutHoras + 'h',
-        padroesVitoria
-      })
+        taxaEntrada: formData.taxaEntrada + " ETH",
+        timeoutHoras: formData.timeoutHoras + "h",
+        padroesVitoria,
+      });
 
-      await iniciarRodada(numeroMaximo, taxaEntrada, timeoutRodada, padroesVitoria)
+      await iniciarRodada(
+        numeroMaximo,
+        taxaEntrada,
+        timeoutRodada,
+        padroesVitoria
+      );
 
       toast({
         title: "Criando rodada...",
-        description: "Transação enviada. Aguarde confirmação."
-      })
-
+        description: "Transação enviada. Aguarde confirmação.",
+      });
     } catch (error: any) {
-      console.error('Erro ao criar rodada:', error)
+      console.error("Erro ao criar rodada:", error);
       toast({
         title: "Erro ao criar rodada",
         description: error.message || "Erro desconhecido",
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   // Sortear número
   const handleDrawNumber = async (roundId: string) => {
@@ -202,25 +211,25 @@ export default function AdminRoundsPage() {
       toast({
         title: "Sem permissão",
         description: "Você precisa ser operador para sortear números",
-        variant: "destructive"
-      })
-      return
+        variant: "destructive",
+      });
+      return;
     }
 
     try {
       // Aqui você chamaria sortearNumero do hook
       toast({
         title: "Sorteando número...",
-        description: `Solicitando sorteio para rodada #${roundId}`
-      })
+        description: `Solicitando sorteio para rodada #${roundId}`,
+      });
     } catch (error: any) {
       toast({
         title: "Erro ao sortear",
         description: error.message,
-        variant: "destructive"
-      })
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   if (!isConnected) {
     return (
@@ -228,15 +237,19 @@ export default function AdminRoundsPage() {
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-md mx-auto text-center">
             <AlertCircle className="h-12 w-12 text-yellow-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-white mb-2">Carteira Necessária</h2>
-            <p className="text-slate-400 mb-4">Conecte sua carteira para acessar a administração</p>
+            <h2 className="text-xl font-bold text-white mb-2">
+              Carteira Necessária
+            </h2>
+            <p className="text-slate-400 mb-4">
+              Conecte sua carteira para acessar a administração
+            </p>
             <Link href="/bingo">
               <Button variant="outline">Voltar ao Jogo</Button>
             </Link>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -246,7 +259,11 @@ export default function AdminRoundsPage() {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link href="/bingo">
-              <Button variant="ghost" size="sm" className="text-slate-400 hover:text-white">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-slate-400 hover:text-white"
+              >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Voltar ao Jogo
               </Button>
@@ -284,7 +301,8 @@ export default function AdminRoundsPage() {
                 {!isOperator && (
                   <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-lg">
                     <p className="text-red-200 text-sm">
-                      ⚠️ Você não tem permissão de operador. Apenas visualização disponível.
+                      ⚠️ Você não tem permissão de operador. Apenas visualização
+                      disponível.
                     </p>
                   </div>
                 )}
@@ -297,11 +315,18 @@ export default function AdminRoundsPage() {
                       min="10"
                       max="99"
                       value={formData.numeroMaximo}
-                      onChange={(e) => setFormData(prev => ({ ...prev, numeroMaximo: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          numeroMaximo: e.target.value,
+                        }))
+                      }
                       className="bg-slate-700 border-slate-600 text-white"
                       disabled={!isOperator}
                     />
-                    <p className="text-xs text-slate-400">Números de 1 a {formData.numeroMaximo}</p>
+                    <p className="text-xs text-slate-400">
+                      Números de 1 a {formData.numeroMaximo}
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -311,7 +336,12 @@ export default function AdminRoundsPage() {
                       step="0.001"
                       min="0.001"
                       value={formData.taxaEntrada}
-                      onChange={(e) => setFormData(prev => ({ ...prev, taxaEntrada: e.target.value }))}
+                      onChange={(e) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          taxaEntrada: e.target.value,
+                        }))
+                      }
                       className="bg-slate-700 border-slate-600 text-white"
                       disabled={!isOperator}
                     />
@@ -326,7 +356,12 @@ export default function AdminRoundsPage() {
                     max="24"
                     step="0.5"
                     value={formData.timeoutHoras}
-                    onChange={(e) => setFormData(prev => ({ ...prev, timeoutHoras: e.target.value }))}
+                    onChange={(e) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        timeoutHoras: e.target.value,
+                      }))
+                    }
                     className="bg-slate-700 border-slate-600 text-white"
                     disabled={!isOperator}
                   />
@@ -336,24 +371,33 @@ export default function AdminRoundsPage() {
                   <Label className="text-white">Padrões de Vitória</Label>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { key: 'linha', label: 'Linha Completa' },
-                      { key: 'coluna', label: 'Coluna Completa' },
-                      { key: 'diagonal', label: 'Diagonal Completa' },
-                      { key: 'cartelaCompleta', label: 'Cartela Completa' }
+                      { key: "linha", label: "Linha Completa" },
+                      { key: "coluna", label: "Coluna Completa" },
+                      { key: "diagonal", label: "Diagonal Completa" },
+                      { key: "cartelaCompleta", label: "Cartela Completa" },
                     ].map(({ key, label }) => (
                       <div key={key} className="flex items-center space-x-2">
                         <Switch
                           id={key}
-                          checked={formData.padroesVitoria[key as keyof typeof formData.padroesVitoria]}
-                          onCheckedChange={(checked) => 
-                            setFormData(prev => ({
+                          checked={
+                            formData.padroesVitoria[
+                              key as keyof typeof formData.padroesVitoria
+                            ]
+                          }
+                          onCheckedChange={(checked) =>
+                            setFormData((prev) => ({
                               ...prev,
-                              padroesVitoria: { ...prev.padroesVitoria, [key]: checked }
+                              padroesVitoria: {
+                                ...prev.padroesVitoria,
+                                [key]: checked,
+                              },
                             }))
                           }
                           disabled={!isOperator}
                         />
-                        <Label htmlFor={key} className="text-sm text-slate-300">{label}</Label>
+                        <Label htmlFor={key} className="text-sm text-slate-300">
+                          {label}
+                        </Label>
                       </div>
                     ))}
                   </div>
@@ -364,7 +408,11 @@ export default function AdminRoundsPage() {
                   disabled={!isOperator || isPending || isConfirming}
                   className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600"
                 >
-                  {isPending ? "Enviando..." : isConfirming ? "Confirmando..." : "Criar Rodada"}
+                  {isPending
+                    ? "Enviando..."
+                    : isConfirming
+                    ? "Confirmando..."
+                    : "Criar Rodada"}
                 </Button>
 
                 {hash && (
@@ -394,9 +442,14 @@ export default function AdminRoundsPage() {
                 ) : activeRounds.length > 0 ? (
                   <div className="space-y-3">
                     {activeRounds.map((round) => (
-                      <div key={round.id.toString()} className="p-3 bg-slate-700/50 rounded-lg border border-slate-600">
+                      <div
+                        key={round.id.toString()}
+                        className="p-3 bg-slate-700/50 rounded-lg border border-slate-600"
+                      >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-white font-medium">Rodada #{round.id.toString()}</span>
+                          <span className="text-white font-medium">
+                            Rodada #{round.id.toString()}
+                          </span>
                           <Badge className="bg-green-500/20 text-green-400 border-green-500/30">
                             Ativa
                           </Badge>
@@ -409,7 +462,9 @@ export default function AdminRoundsPage() {
                         {isOperator && (
                           <Button
                             size="sm"
-                            onClick={() => handleDrawNumber(round.id.toString())}
+                            onClick={() =>
+                              handleDrawNumber(round.id.toString())
+                            }
                             className="w-full mt-2 bg-gradient-to-r from-yellow-500 to-orange-500"
                           >
                             <Zap className="h-3 w-3 mr-1" />
@@ -421,7 +476,9 @@ export default function AdminRoundsPage() {
                   </div>
                 ) : (
                   <div className="text-center py-4">
-                    <p className="text-slate-400 text-sm">Nenhuma rodada ativa</p>
+                    <p className="text-slate-400 text-sm">
+                      Nenhuma rodada ativa
+                    </p>
                   </div>
                 )}
               </CardContent>
@@ -435,7 +492,9 @@ export default function AdminRoundsPage() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Total de Rodadas:</span>
-                  <span className="text-white">{totalRodadas?.toString() || "0"}</span>
+                  <span className="text-white">
+                    {totalRodadas?.toString() || "0"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Rodadas Ativas:</span>
@@ -443,7 +502,9 @@ export default function AdminRoundsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400">Sua Permissão:</span>
-                  <span className={isOperator ? "text-green-400" : "text-red-400"}>
+                  <span
+                    className={isOperator ? "text-green-400" : "text-red-400"}
+                  >
                     {isOperator ? "Operador" : "Usuário"}
                   </span>
                 </div>
@@ -453,5 +514,5 @@ export default function AdminRoundsPage() {
         </div>
       </main>
     </div>
-  )
+  );
 }

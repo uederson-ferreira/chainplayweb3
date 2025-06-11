@@ -1,5 +1,5 @@
 // ABIs gerados automaticamente do Foundry - não editar manualmente
-// Gerado em: 2025-06-07T17:05:28.587Z
+// Gerado em: 2025-06-11T01:02:30.577Z
 // Fonte: contracts/out/
 
 export const CARTELA_ABI = [
