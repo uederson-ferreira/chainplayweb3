@@ -13,7 +13,7 @@ const publicClient = createPublicClient({
     nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
     rpcUrls: { default: { http: ["http://127.0.0.1:8545"] } },
   },
-  transport: process.env.NEXT_PUBLIC_RPC_URL,
+  transport: http(process.env.NEXT_PUBLIC_RPC_URL!),
 });
 
 const BINGO_ADDRESS = process.env.NEXT_PUBLIC_BINGO_CONTRACT_ADDRESS;

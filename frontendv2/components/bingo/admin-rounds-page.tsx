@@ -28,7 +28,7 @@ import { CONTRACTS, localChain } from "@/lib/web3/config";
 // ===== CRIAR publicClient =====
 const publicClient = createPublicClient({
   chain: localChain,
-  transport: process.env.NEXT_PUBLIC_RPC_URL,
+  transport: http(process.env.NEXT_PUBLIC_RPC_URL!),
 });
 
 const bingoContractConfig = {

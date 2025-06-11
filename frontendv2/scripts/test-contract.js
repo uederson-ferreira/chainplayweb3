@@ -66,7 +66,7 @@ async function testContract() {
     // Criar cliente público
     const publicClient = createPublicClient({
       chain: localChain,
-      transport: process.env.NEXT_PUBLIC_RPC_URL,
+      transport: http(process.env.NEXT_PUBLIC_RPC_URL!),
     });
 
     console.log("✅ Cliente criado");

@@ -75,7 +75,6 @@ export default function FixedBingoGameWeb3({ user }: BingoGameWeb3Props) {
     hasActiveRounds,
     getCurrentRound,
     canJoinRounds,
-    calculateEstimatedPrize,
     hasSupabaseData,
     stats
   } = useEnhancedActiveRounds();
